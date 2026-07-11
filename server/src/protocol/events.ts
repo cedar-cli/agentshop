@@ -47,6 +47,25 @@ export const EVENT_TYPES = [
   "restock.inventory.updated",
   "restock.memory.updated",
   "restock.notification.sent",
+  // ---- 卖家主动销售：商品理解、授权路由与自动成交 ----
+  "active-sale.product.ingested",
+  "active-sale.passport.published",
+  "active-sale.buyer.matched",
+  "active-sale.proposal.routed",
+  "active-sale.proposal.blocked",
+  "active-sale.buyer.selected",
+  "active-sale.completed",
+  // ---- 需求网络：需求聚合反向组织供给与分销 ----
+  "demand.need.received",
+  "demand.intent.structured",
+  "demand.market.aggregated",
+  "demand.product.forecasted",
+  "demand.supply.negotiated",
+  "demand.batch.completed",
+  "distribution.contract.published",
+  "distribution.agent.matched",
+  "distribution.orders.completed",
+  "distribution.commission.released",
 ] as const;
 
 export type AgentEventType = (typeof EVENT_TYPES)[number];
@@ -574,6 +593,186 @@ export interface LiveReceipt {
   issuedAt: string;
 }
 
+export type ActiveSalesConsent = "open" | "limited" | "closed";
+
+export interface ActiveSalesProductIngested {
+  productId: string;
+  name: string;
+  category: string;
+  priceUsd: number;
+  stock: number;
+  sourceCoverage: number;
+  rawDescription: string;
+}
+
+export interface ActiveSalesPassportPublished {
+  productId: string;
+  features: string[];
+  summary: string;
+  passport: {
+    material: string;
+    evidence: string;
+    delivery: string;
+    returns: string;
+  };
+  coverageBefore: number;
+  coverageAfter: number;
+  generatedBy: "llm" | "fallback";
+  fallbackReason?: string;
+}
+
+export interface ActiveSalesBuyerMatched {
+  buyerId: string;
+  displayName: string;
+  profile: string;
+  consent: ActiveSalesConsent;
+  exposedFields: string[];
+  matchScore: number;
+  reasons: string[];
+}
+
+export interface ActiveSalesProposalRouted {
+  buyerId: string;
+  displayName: string;
+  routeId: string;
+  consent: "open" | "limited";
+  matchScore: number;
+  pitch: string;
+  generatedBy: "llm" | "fallback";
+  fallbackReason?: string;
+}
+
+export interface ActiveSalesProposalBlocked {
+  buyerId: string;
+  displayName: string;
+  consent: "closed";
+  reason: string;
+  exposedFieldCount: 0;
+}
+
+export interface ActiveSalesBuyerSelected {
+  buyerId: string;
+  displayName: string;
+  score: number;
+  reason: string;
+  comparison: Array<{
+    product: string;
+    priceUsd: number;
+    evidence: string;
+    delivery: string;
+    score: number;
+  }>;
+}
+
+export interface ActiveSalesCompleted {
+  orderId: string;
+  buyerId: string;
+  displayName: string;
+  productId: string;
+  productName: string;
+  amountUsd: number;
+  autoApproved: true;
+  humanClicks: 0;
+}
+
+export interface DemandNetworkRequest {
+  commissionRate: number;
+  maxDiscountPercent: number;
+}
+
+export interface DemandNeedReceived {
+  needId: string;
+  buyerType: "consumer" | "business";
+  text: string;
+  source: "demo-fixture";
+}
+
+export interface DemandIntentStructured {
+  needId: string;
+  scene: string;
+  quantity: number;
+  budgetUsd: number;
+  deadlineDays: number;
+  requirements: string[];
+  generatedBy: "llm" | "fallback";
+  fallbackReason?: string;
+}
+
+export interface DemandMarketAggregated {
+  sampleSize: number;
+  simulatedMarketIntents: number;
+  clusters: Array<{ label: string; sampleHits: number; simulatedDemand: number; growthPercent: number }>;
+  simulated: true;
+}
+
+export interface DemandProductForecasted {
+  selectedProduct: string;
+  candidates: Array<{
+    product: string;
+    marketHeat: number;
+    supplyFit: number;
+    marginFit: number;
+    totalScore: number;
+  }>;
+  reason: string;
+}
+
+export interface DemandSupplyNegotiated {
+  supplierId: string;
+  quantity: number;
+  unitPriceUsd: number;
+  depositPercent: number;
+  deliveryDays: number;
+  delayPenaltyPercentPerDay: number;
+  reasoning: string;
+  generatedBy: "llm" | "fallback";
+  fallbackReason?: string;
+}
+
+export interface DemandBatchCompleted {
+  batchId: string;
+  quantity: number;
+  status: "released";
+  checks: string[];
+  productPassportId: string;
+  simulated: true;
+}
+
+export interface DistributionContractPublished {
+  contractId: string;
+  commissionRate: number;
+  maxDiscountPercent: number;
+  minimumMarginPercent: number;
+  settlementCondition: "fulfilled-and-attested";
+}
+
+export interface DistributionAgentMatched {
+  agentId: string;
+  label: string;
+  channel: string;
+  authorizedIntentCount: number;
+  matchScore: number;
+}
+
+export interface DistributionOrdersCompleted {
+  orderCount: number;
+  gmvUsd: number;
+  b2cOrders: number;
+  b2bOrders: number;
+  attestedOrders: number;
+  sampleOrders: Array<{ source: string; buyer: string; amountUsd: number }>;
+  simulated: true;
+}
+
+export interface DistributionCommissionReleased {
+  contractId: string;
+  orderCount: number;
+  commissionRate: number;
+  amountUsd: number;
+  condition: "fulfilled-and-attested";
+  hashChainVerified: true;
+}
+
 export interface EventPayloadMap {
   "purchase.requested": PurchaseRequest;
   "proposal.submitted": Proposal;
@@ -612,6 +811,23 @@ export interface EventPayloadMap {
   "restock.inventory.updated": RestockInventoryUpdated;
   "restock.memory.updated": RestockMemoryUpdated;
   "restock.notification.sent": RestockNotificationSent;
+  "active-sale.product.ingested": ActiveSalesProductIngested;
+  "active-sale.passport.published": ActiveSalesPassportPublished;
+  "active-sale.buyer.matched": ActiveSalesBuyerMatched;
+  "active-sale.proposal.routed": ActiveSalesProposalRouted;
+  "active-sale.proposal.blocked": ActiveSalesProposalBlocked;
+  "active-sale.buyer.selected": ActiveSalesBuyerSelected;
+  "active-sale.completed": ActiveSalesCompleted;
+  "demand.need.received": DemandNeedReceived;
+  "demand.intent.structured": DemandIntentStructured;
+  "demand.market.aggregated": DemandMarketAggregated;
+  "demand.product.forecasted": DemandProductForecasted;
+  "demand.supply.negotiated": DemandSupplyNegotiated;
+  "demand.batch.completed": DemandBatchCompleted;
+  "distribution.contract.published": DistributionContractPublished;
+  "distribution.agent.matched": DistributionAgentMatched;
+  "distribution.orders.completed": DistributionOrdersCompleted;
+  "distribution.commission.released": DistributionCommissionReleased;
 }
 
 export type AgentEvent<T extends AgentEventType = AgentEventType> =

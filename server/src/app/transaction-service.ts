@@ -6,12 +6,14 @@ import type { EvidenceAnswerGenerator } from "../agents/evidence-answer-generato
 import type { ProposalGenerator } from "../agents/proposal-generator.js";
 import type { CounterNegotiator } from "../agents/counter-negotiator.js";
 import type { LaptopLlmAgent } from "../llm/laptop-agent.js";
+import type { ActiveSalesLlmAgent } from "../llm/active-sales-agent.js";
+import type { DemandNetworkLlmAgent } from "../llm/demand-network-agent.js";
 import { SellerAgent } from "../agents/seller-agent.js";
 import {
   sellerProfiles,
   type SellerProfile,
 } from "../agents/seller-profiles.js";
-import type { ExecutableIntent, LaptopPurchaseRequested, PurchaseRequest, RestockIntent } from "../protocol/events.js";
+import type { DemandNetworkRequest, ExecutableIntent, LaptopPurchaseRequested, PurchaseRequest, RestockIntent } from "../protocol/events.js";
 import { EventRouter } from "../router/event-router.js";
 import {
   createNewbornBeddingScenario,
@@ -27,6 +29,8 @@ import {
   type LaptopApprovalState,
 } from "../scenario/laptop-purchase-workflow.js";
 import { createRestockIntent, runHouseholdRestockWorkflow } from "../scenario/household-restock-workflow.js";
+import { activeSalesProduct, runActiveSalesWorkflow } from "../scenario/active-sales-workflow.js";
+import { runDemandNetworkWorkflow } from "../scenario/demand-network-workflow.js";
 import { SseHub, type SseListener } from "../server/sse-hub.js";
 import { EventStore, type StoredEvent } from "../store/event-store.js";
 
@@ -42,14 +46,14 @@ export type TransactionStatus =
  *  - purchase：现有的普通采购交易，request 为 PurchaseRequest。
  *  - newborn-bedding-demo：新生儿床品 A2A 演示，request 为可执行意图 ExecutableIntent。
  */
-export type TransactionKind = "purchase" | "newborn-bedding-demo" | "laptop-demo" | "household-restock-demo";
+export type TransactionKind = "purchase" | "newborn-bedding-demo" | "laptop-demo" | "household-restock-demo" | "active-sales-demo" | "demand-network-demo";
 
 interface TransactionRecord {
   id: string;
   kind: TransactionKind;
   status: TransactionStatus;
   // 采购交易存 PurchaseRequest；Demo 交易存 ExecutableIntent（意图即请求）
-  request: PurchaseRequest | ExecutableIntent | LaptopPurchaseRequested | RestockIntent;
+  request: PurchaseRequest | ExecutableIntent | LaptopPurchaseRequested | RestockIntent | DemandNetworkRequest | { productId: string };
   error?: string;
 }
 
@@ -76,6 +80,8 @@ export interface TransactionServiceOptions {
   // server.ts 依 DEMO_LLM_ENABLED 决定是否传入 OpenAI 实现；测试可传桩实现。
   sellerCAnswerGenerator?: EvidenceAnswerGenerator;
   laptopLlmAgent?: LaptopLlmAgent;
+  activeSalesLlmAgent?: ActiveSalesLlmAgent;
+  demandNetworkLlmAgent?: DemandNetworkLlmAgent;
 }
 
 export class TransactionService {
@@ -87,6 +93,8 @@ export class TransactionService {
   // Demo 逐事件播放间隔（毫秒），构造时确定，全部 Demo 交易共用
   private readonly newbornBeddingStepDelayMs: number;
   private readonly laptopLlmAgent?: LaptopLlmAgent;
+  private readonly activeSalesLlmAgent?: ActiveSalesLlmAgent;
+  private readonly demandNetworkLlmAgent?: DemandNetworkLlmAgent;
   private readonly proposalGenerator: ProposalGenerator;
   private readonly counterNegotiator?: CounterNegotiator;
   private readonly laptopApprovals = new Map<string, LaptopApprovalState>();
@@ -99,6 +107,8 @@ export class TransactionService {
     const profiles = options.profiles ?? sellerProfiles;
     this.newbornBeddingStepDelayMs = options.newbornBeddingStepDelayMs ?? 0;
     this.laptopLlmAgent = options.laptopLlmAgent;
+    this.activeSalesLlmAgent = options.activeSalesLlmAgent;
+    this.demandNetworkLlmAgent = options.demandNetworkLlmAgent;
     this.proposalGenerator = options.proposalGenerator;
     this.counterNegotiator = options.counterNegotiator;
     this.store = new EventStore(options.databaseFilename);
@@ -159,6 +169,27 @@ export class TransactionService {
 
   createHouseholdRestockDemo(): string {
     return this.enqueue("household-restock-demo", createRestockIntent());
+  }
+
+  listSellerProducts() {
+    return [{
+      id: activeSalesProduct.id,
+      name: activeSalesProduct.name,
+      category: activeSalesProduct.category,
+      priceUsd: activeSalesProduct.priceUsd,
+      stock: activeSalesProduct.stock,
+      sourceCoverage: 58,
+      status: "online" as const,
+    }];
+  }
+
+  createActiveSalesDemo(productId: string): string | undefined {
+    if (productId !== activeSalesProduct.id) return undefined;
+    return this.enqueue("active-sales-demo", { productId });
+  }
+
+  createDemandNetworkDemo(request: DemandNetworkRequest): string {
+    return this.enqueue("demand-network-demo", request);
   }
 
   listActiveServices(): ActiveServiceSnapshot[] {
@@ -296,7 +327,7 @@ export class TransactionService {
    */
   private enqueue(
     kind: TransactionKind,
-    request: PurchaseRequest | ExecutableIntent | LaptopPurchaseRequested | RestockIntent,
+    request: PurchaseRequest | ExecutableIntent | LaptopPurchaseRequested | RestockIntent | DemandNetworkRequest | { productId: string },
   ): string {
     const transactionId = `tx-${randomUUID()}`;
     this.transactions.set(transactionId, {
@@ -338,6 +369,16 @@ export class TransactionService {
           this.counterNegotiator,
         );
         this.projectRestockInbox(transactionId);
+      } else if (transaction.kind === "active-sales-demo") {
+        await runActiveSalesWorkflow(this.router, transactionId, this.activeSalesLlmAgent);
+        this.projectActiveSalesInbox(transactionId);
+      } else if (transaction.kind === "demand-network-demo") {
+        await runDemandNetworkWorkflow(
+          this.router,
+          transactionId,
+          transaction.request as DemandNetworkRequest,
+          this.demandNetworkLlmAgent,
+        );
       } else {
         // 采购：保留原有发布 purchase.requested 的行为
         await this.router.publish({
@@ -395,6 +436,48 @@ export class TransactionService {
         ? memory.payload.memory
         : "记录本次补库价格与消耗周期，用于下次预测。",
       relatedPurchaseId: "paper-restock",
+      transactionId,
+      chainValid: snapshot.chainValid,
+    };
+    this.inboxMessages.set(message.id, message);
+    this.publishInbox("inbox.message.upserted", message);
+  }
+
+  private projectActiveSalesInbox(transactionId: string): void {
+    const snapshot = this.get(transactionId);
+    if (!snapshot) return;
+    const completed = snapshot.events.find((event) => event.type === "active-sale.completed");
+    const proposal = snapshot.events.find((event) =>
+      event.type === "active-sale.proposal.routed" && event.payload.buyerId === "mia",
+    );
+    const passport = snapshot.events.find((event) => event.type === "active-sale.passport.published");
+    if (completed?.type !== "active-sale.completed" || proposal?.type !== "active-sale.proposal.routed") return;
+    const message: InboxMessage = {
+      id: `inbox-active-sale-${transactionId}`,
+      type: "completed",
+      source: "seller-agent",
+      runtime: "live",
+      status: "unread",
+      merchant: "DeepLumen Seller Agent",
+      title: "授权主动提案已自动成交",
+      receivedAt: new Date().toISOString(),
+      category: "母婴床品",
+      offer: `$${completed.payload.amountUsd} · 72 小时送达 · 人类点击 ${completed.payload.humanClicks} 次`,
+      evidence: [
+        "主动提案仅经过 Open 授权 Inbox",
+        passport?.type === "active-sale.passport.published"
+          ? `Product Passport ${passport.payload.coverageAfter}% · ${passport.payload.generatedBy.toUpperCase()}`
+          : "Product Passport 已验证",
+        snapshot.chainValid ? "主动销售事件 Hash Chain 已验证" : "主动销售事件链验证失败",
+      ],
+      verdict: "valuable",
+      verdictLabel: "自动成交",
+      valueScore: proposal.payload.matchScore,
+      agentEvaluation: proposal.payload.pitch,
+      requiresAction: false,
+      generatedBy: proposal.payload.generatedBy === "llm" ? "llm" : "rule",
+      memoryRecommended: true,
+      memoryReason: "记录低敏证据、三日送达和预算偏好，用于未来同类商品的授权判断。",
       transactionId,
       chainValid: snapshot.chainValid,
     };

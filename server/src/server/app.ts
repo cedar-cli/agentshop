@@ -1,6 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { z } from "zod";
-import { laptopPurchaseRequestSchema, purchaseRequestSchema } from "../protocol/schemas.js";
+import { demandNetworkRequestSchema, laptopPurchaseRequestSchema, purchaseRequestSchema } from "../protocol/schemas.js";
 import type { TransactionService } from "../app/transaction-service.js";
 
 function writeSseEvent(
@@ -40,6 +40,31 @@ export function buildApp(
   app.get("/api/transactions", async () => ({
     transactions: service.list(),
   }));
+
+  app.get("/api/seller/products", async () => ({ products: service.listSellerProducts() }));
+
+  app.post<{ Params: { id: string } }>("/api/seller/products/:id/activate", async (request, reply) => {
+    const transactionId = service.createActiveSalesDemo(request.params.id);
+    if (!transactionId) return reply.status(404).send({ error: "seller_product_not_found" });
+    return reply.status(202).send({
+      transactionId,
+      status: "queued",
+      transactionUrl: `/api/transactions/${transactionId}`,
+      eventsUrl: `/api/transactions/${transactionId}/events`,
+    });
+  });
+
+  app.post("/api/seller/demand-network", async (request, reply) => {
+    const parsed = demandNetworkRequestSchema.safeParse(request.body);
+    if (!parsed.success) return reply.status(400).send({ error: "invalid_demand_network_request" });
+    const transactionId = service.createDemandNetworkDemo(parsed.data);
+    return reply.status(202).send({
+      transactionId,
+      status: "queued",
+      transactionUrl: `/api/transactions/${transactionId}`,
+      eventsUrl: `/api/transactions/${transactionId}/events`,
+    });
+  });
 
   app.get("/api/active-services", async () => ({
     services: service.listActiveServices(),

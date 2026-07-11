@@ -237,6 +237,110 @@ const restockNotificationSentSchema = z.object({
   channel: z.literal("inbox"), requiresAction: z.literal(false), summary: z.string().min(1),
 });
 
+const activeSalesProductIngestedSchema = z.object({
+  productId: z.string().min(1), name: z.string().min(1), category: z.string().min(1),
+  priceUsd: z.number().positive(), stock: z.number().int().min(0),
+  sourceCoverage: z.number().min(0).max(100), rawDescription: z.string().min(1).max(1000),
+});
+const activeSalesPassportPublishedSchema = z.object({
+  productId: z.string().min(1), features: z.array(z.string().min(1)).min(1).max(12),
+  summary: z.string().min(1).max(300),
+  passport: z.object({
+    material: z.string().min(1), evidence: z.string().min(1),
+    delivery: z.string().min(1), returns: z.string().min(1),
+  }),
+  coverageBefore: z.number().min(0).max(100), coverageAfter: z.number().min(0).max(100),
+  generatedBy: z.enum(["llm", "fallback"]), fallbackReason: z.string().max(240).optional(),
+});
+const activeSalesBuyerMatchedSchema = z.object({
+  buyerId: z.string().min(1), displayName: z.string().min(1), profile: z.string().min(1),
+  consent: z.enum(["open", "limited", "closed"]), exposedFields: z.array(z.string().min(1)),
+  matchScore: z.number().min(0).max(100), reasons: z.array(z.string().min(1)),
+});
+const activeSalesProposalRoutedSchema = z.object({
+  buyerId: z.string().min(1), displayName: z.string().min(1), routeId: z.string().min(1),
+  consent: z.enum(["open", "limited"]), matchScore: z.number().min(0).max(100),
+  pitch: z.string().min(1).max(300), generatedBy: z.enum(["llm", "fallback"]),
+  fallbackReason: z.string().max(240).optional(),
+});
+const activeSalesProposalBlockedSchema = z.object({
+  buyerId: z.string().min(1), displayName: z.string().min(1), consent: z.literal("closed"),
+  reason: z.string().min(1).max(240), exposedFieldCount: z.literal(0),
+});
+const activeSalesBuyerSelectedSchema = z.object({
+  buyerId: z.string().min(1), displayName: z.string().min(1), score: z.number().min(0).max(100),
+  reason: z.string().min(1).max(300),
+  comparison: z.array(z.object({
+    product: z.string().min(1), priceUsd: z.number().positive(), evidence: z.string().min(1),
+    delivery: z.string().min(1), score: z.number().min(0).max(100),
+  })).min(1),
+});
+const activeSalesCompletedSchema = z.object({
+  orderId: z.string().min(1), buyerId: z.string().min(1), displayName: z.string().min(1),
+  productId: z.string().min(1), productName: z.string().min(1), amountUsd: z.number().positive(),
+  autoApproved: z.literal(true), humanClicks: z.literal(0),
+});
+
+export const demandNetworkRequestSchema = z.object({
+  commissionRate: z.number().min(1).max(8),
+  maxDiscountPercent: z.number().min(2).max(15),
+});
+const demandNeedReceivedSchema = z.object({
+  needId: z.string().min(1), buyerType: z.enum(["consumer", "business"]),
+  text: z.string().min(1).max(500), source: z.literal("demo-fixture"),
+});
+const demandIntentStructuredSchema = z.object({
+  needId: z.string().min(1), scene: z.string().min(1), quantity: z.number().int().positive(),
+  budgetUsd: z.number().positive(), deadlineDays: z.number().positive(),
+  requirements: z.array(z.string().min(1)).min(1), generatedBy: z.enum(["llm", "fallback"]),
+  fallbackReason: z.string().max(240).optional(),
+});
+const demandMarketAggregatedSchema = z.object({
+  sampleSize: z.number().int().positive(), simulatedMarketIntents: z.number().int().positive(),
+  clusters: z.array(z.object({
+    label: z.string().min(1), sampleHits: z.number().int().min(0),
+    simulatedDemand: z.number().int().min(0), growthPercent: z.number(),
+  })).min(1), simulated: z.literal(true),
+});
+const demandProductForecastedSchema = z.object({
+  selectedProduct: z.string().min(1), candidates: z.array(z.object({
+    product: z.string().min(1), marketHeat: z.number().min(0).max(100),
+    supplyFit: z.number().min(0).max(100), marginFit: z.number().min(0).max(100),
+    totalScore: z.number().min(0).max(100),
+  })).min(1), reason: z.string().min(1).max(300),
+});
+const demandSupplyNegotiatedSchema = z.object({
+  supplierId: z.string().min(1), quantity: z.number().int().positive(), unitPriceUsd: z.number().positive(),
+  depositPercent: z.number().min(0).max(100), deliveryDays: z.number().positive(),
+  delayPenaltyPercentPerDay: z.number().min(0).max(100), reasoning: z.string().min(1).max(300),
+  generatedBy: z.enum(["llm", "fallback"]), fallbackReason: z.string().max(240).optional(),
+});
+const demandBatchCompletedSchema = z.object({
+  batchId: z.string().min(1), quantity: z.number().int().positive(), status: z.literal("released"),
+  checks: z.array(z.string().min(1)).min(1), productPassportId: z.string().min(1), simulated: z.literal(true),
+});
+const distributionContractPublishedSchema = z.object({
+  contractId: z.string().min(1), commissionRate: z.number().min(1).max(8),
+  maxDiscountPercent: z.number().min(2).max(15), minimumMarginPercent: z.number().min(0).max(100),
+  settlementCondition: z.literal("fulfilled-and-attested"),
+});
+const distributionAgentMatchedSchema = z.object({
+  agentId: z.string().min(1), label: z.string().min(1), channel: z.string().min(1),
+  authorizedIntentCount: z.number().int().min(0), matchScore: z.number().min(0).max(100),
+});
+const distributionOrdersCompletedSchema = z.object({
+  orderCount: z.number().int().positive(), gmvUsd: z.number().positive(),
+  b2cOrders: z.number().int().min(0), b2bOrders: z.number().int().min(0),
+  attestedOrders: z.number().int().min(0), sampleOrders: z.array(z.object({
+    source: z.string().min(1), buyer: z.string().min(1), amountUsd: z.number().positive(),
+  })).min(1), simulated: z.literal(true),
+});
+const distributionCommissionReleasedSchema = z.object({
+  contractId: z.string().min(1), orderCount: z.number().int().positive(),
+  commissionRate: z.number().min(1).max(8), amountUsd: z.number().min(0),
+  condition: z.literal("fulfilled-and-attested"), hashChainVerified: z.literal(true),
+});
+
 // ===========================================================================
 // 新增负载 Schema：可执行意图、机器询证、动态评分、自动购买协议
 //
@@ -620,4 +724,21 @@ export const agentEventSchema = z.discriminatedUnion("type", [
   z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("restock.inventory.updated"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: restockInventoryUpdatedSchema }),
   z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("restock.memory.updated"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: restockMemoryUpdatedSchema }),
   z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("restock.notification.sent"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: restockNotificationSentSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("active-sale.product.ingested"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: activeSalesProductIngestedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("active-sale.passport.published"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: activeSalesPassportPublishedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("active-sale.buyer.matched"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: activeSalesBuyerMatchedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("active-sale.proposal.routed"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: activeSalesProposalRoutedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("active-sale.proposal.blocked"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: activeSalesProposalBlockedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("active-sale.buyer.selected"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: activeSalesBuyerSelectedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("active-sale.completed"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: activeSalesCompletedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("demand.need.received"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: demandNeedReceivedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("demand.intent.structured"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: demandIntentStructuredSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("demand.market.aggregated"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: demandMarketAggregatedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("demand.product.forecasted"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: demandProductForecastedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("demand.supply.negotiated"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: demandSupplyNegotiatedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("demand.batch.completed"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: demandBatchCompletedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("distribution.contract.published"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: distributionContractPublishedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("distribution.agent.matched"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: distributionAgentMatchedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("distribution.orders.completed"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: distributionOrdersCompletedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("distribution.commission.released"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: distributionCommissionReleasedSchema }),
 ]);

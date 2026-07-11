@@ -22,4 +22,26 @@ describe('商家端演示工作台', () => {
     expect(screen.getByText('内部执行过程')).toBeInTheDocument()
     expect(screen.getByText('影响变化')).toBeInTheDocument()
   })
+
+  it('主动销售页展示商品、授权 Router 和真实启动入口', async () => {
+    const user = userEvent.setup()
+    render(<MerchantModule />)
+    await user.click(screen.getByRole('button', { name: /主动销售/ }))
+    expect(screen.getByText('商品主动找到合适的买家')).toBeInTheDocument()
+    expect(screen.getByText('Product Shelf')).toBeInTheDocument()
+    expect(screen.getByText('Authorized Buyer Inboxes')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /启动 Seller Agent/ })).toBeInTheDocument()
+  })
+
+  it('需求网络页展示九幕链路和真实合约参数', async () => {
+    const user = userEvent.setup()
+    render(<MerchantModule />)
+    await user.click(screen.getByRole('button', { name: /需求网络/ }))
+    expect(screen.getByText('需求驱动的供给网络')).toBeInTheDocument()
+    expect(screen.getByText(/Intent Extractor/)).toBeInTheDocument()
+    expect(screen.getByText(/A2A 供应协商/)).toBeInTheDocument()
+    expect(screen.getByText(/分销 Agent 网络/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /启动需求网络/ })).toBeInTheDocument()
+    expect(screen.getByText('3.0%')).toBeInTheDocument()
+  })
 })

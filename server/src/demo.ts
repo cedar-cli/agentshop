@@ -48,6 +48,23 @@ const labels: Record<AgentEventType, string> = {
   "restock.inventory.updated": "模拟家庭库存更新",
   "restock.memory.updated": "更新消耗记忆",
   "restock.notification.sent": "向人类发送完成摘要",
+  "active-sale.product.ingested": "商品进入 Seller Agent",
+  "active-sale.passport.published": "发布 Product Passport",
+  "active-sale.buyer.matched": "匹配授权买家画像",
+  "active-sale.proposal.routed": "主动提案写入授权 Inbox",
+  "active-sale.proposal.blocked": "Consent Router 拦截提案",
+  "active-sale.buyer.selected": "Buyer Agent 自动选中商品",
+  "active-sale.completed": "授权范围内自动成交",
+  "demand.need.received": "买家需求进入市场",
+  "demand.intent.structured": "需求结构化为 Intent",
+  "demand.market.aggregated": "聚合市场需求热力",
+  "demand.product.forecasted": "Seller Agent 完成选品预测",
+  "demand.supply.negotiated": "Seller 与 Supply Agent 协商",
+  "demand.batch.completed": "模拟生产批次完成",
+  "distribution.contract.published": "发布分销合约",
+  "distribution.agent.matched": "匹配分销 Agent",
+  "distribution.orders.completed": "分销网络规模成交",
+  "distribution.commission.released": "履约鉴证后释放佣金",
 };
 
 mkdirSync("data", { recursive: true });
