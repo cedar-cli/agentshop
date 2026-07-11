@@ -167,17 +167,49 @@ export interface ExecutableIntent {
 }
 
 /**
+ * 结构化凭证：证据文档所携带的可验证凭证元数据。
+ *
+ * 这是对 EvidenceDocument 的**最小扩展**，用于把凭证的结构化要素（类型、签发方、
+ * 引用编号、内容哈希、有效期、验证状态、Demo 免责声明）以字段形式承载，
+ * 而**不是**把它们拼进 title 字符串。整个证据体系仍只有 EvidenceDocument 这一套结构，
+ * credential 只是其中一个可选子对象，向后兼容不带凭证的旧文档。
+ */
+export interface EvidenceCredential {
+  // 凭证类型（与其所满足的 EvidenceRequirement.kind 对齐，便于逐项核对）
+  type: EvidenceRequirement["kind"];
+  // 签发方名称
+  issuer: string;
+  // 凭证在签发方处的引用编号
+  referenceId: string;
+  // 凭证内容哈希（供本地复算比对、防篡改）
+  hash: string;
+  // 有效期起始（ISO-8601，带时区偏移）
+  validFrom: string;
+  // 有效期截止（ISO-8601，带时区偏移）
+  validUntil: string;
+  // 验证状态（如 "demo-verifiable" / "unverifiable"）
+  verificationStatus: string;
+  // Demo 标记：明确这是演示可验证凭证，不是真实外部认证
+  isDemoCredential: boolean;
+  // 免责说明，杜绝把 Demo 凭证误当成真实认证
+  disclaimer: string;
+}
+
+/**
  * 证据文档：卖家为满足某条证据要求而提交的一份材料。
+ * 可选携带一个结构化 credential 子对象承载凭证要素（见 EvidenceCredential）。
  */
 export interface EvidenceDocument {
   // 对应的证据要求 id（回指 EvidenceRequirement.id）
   requirementId: string;
-  // 文档标题（如 "OEKO-TEX 认证证书 2026"）
+  // 文档标题（人类可读描述，不塞结构化字段，如 "低敏实验室检测报告"）
   title: string;
   // 文档可访问地址（Demo 中可为占位 URL）
   uri: string;
-  // 文档内容的哈希（用于回执快照与防篡改校验）
+  // 文档内容的哈希（用于回执快照与防篡改校验；有 credential 时应与其 hash 一致）
   contentHash: string;
+  // 结构化凭证（可选）：承载类型/签发方/引用编号/有效期/验证状态/免责声明等要素
+  credential?: EvidenceCredential;
 }
 
 /**

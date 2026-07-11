@@ -150,6 +150,61 @@ describe("evidenceDocumentSchema", () => {
     const bad = { ...validDocument, uri: "" };
     expect(evidenceDocumentSchema.safeParse(bad).success).toBe(false);
   });
+
+  // ---- 结构化凭证（credential 可选子对象）----
+  const validCredentialDocument = {
+    requirementId: "hypoallergenic-lab-report",
+    title: "低敏实验室检测报告",
+    uri: "https://example.com/certs/lab.pdf",
+    contentHash: "demohash-lab-0001",
+    credential: {
+      type: "lab-report" as const,
+      issuer: "Demo 低敏检测中心",
+      referenceId: "LAB-0001",
+      hash: "demohash-lab-0001",
+      validFrom: "2026-01-01T00:00:00+08:00",
+      validUntil: "2027-01-01T00:00:00+08:00",
+      verificationStatus: "demo-verifiable",
+      isDemoCredential: true as const,
+      disclaimer: "演示用可验证凭证，非真实认证。",
+    },
+  };
+
+  it("accepts a document carrying a structured credential", () => {
+    expect(evidenceDocumentSchema.parse(validCredentialDocument)).toEqual(
+      validCredentialDocument,
+    );
+  });
+
+  it("rejects a credential claiming to be a real (non-demo) certification", () => {
+    const bad = {
+      ...validCredentialDocument,
+      credential: {
+        ...validCredentialDocument.credential,
+        isDemoCredential: false,
+      },
+    };
+    expect(evidenceDocumentSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("rejects a credential with an unknown type", () => {
+    const bad = {
+      ...validCredentialDocument,
+      credential: { ...validCredentialDocument.credential, type: "video" },
+    };
+    expect(evidenceDocumentSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("rejects a credential whose validity date lacks a timezone offset", () => {
+    const bad = {
+      ...validCredentialDocument,
+      credential: {
+        ...validCredentialDocument.credential,
+        validUntil: "2027-01-01T00:00:00",
+      },
+    };
+    expect(evidenceDocumentSchema.safeParse(bad).success).toBe(false);
+  });
 });
 
 describe("evidenceQuestionSchema", () => {
