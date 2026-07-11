@@ -759,9 +759,10 @@
 .demand-stage > header em { padding: 2px 4px; color: var(--color-verify); background: var(--color-verify-soft); border-radius: 3px; font-size: 5px; font-style: normal; }
 .demand-stage > section { min-height: 0; flex: 1; overflow: auto; padding: 7px; }
 .need-stream,.intent-mini-list,.forecast-mini-list { display: flex; flex-direction: column; gap: 4px; }
-.need-stream > div { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 5px; padding: 5px; background: var(--color-data-soft); border-radius: 4px; }
+.need-stream > div { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 5px; padding: 5px; background: var(--color-data-soft); border-radius: 4px; }
 .need-stream b { color: var(--color-data); font-family: var(--font-mono); font-size: 6px; }
 .need-stream span { overflow: hidden; color: var(--color-text-dim); font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.need-stream em { padding: 2px 4px; color: var(--color-fulfil); background: var(--color-fulfil-soft); border-radius: 3px; font-size: 5px; font-style: normal; }
 .intent-mini-list > div { display: flex; align-items: center; gap: 5px; padding: 5px; background: var(--color-surface-1); border-radius: 4px; }
 .intent-mini-list div > span { min-width: 0; display: flex; flex: 1; flex-direction: column; }
 .intent-mini-list b { overflow: hidden; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }

@@ -2,6 +2,7 @@ export interface DemandNeedFact {
   id: string;
   buyerType: "consumer" | "business";
   text: string;
+  source: "demo-fixture" | "consumer-transaction";
   fallbackIntent: DemandIntentDraft;
 }
 

@@ -815,6 +815,22 @@
 .inbox-no-action { display: flex; align-items: center; gap: 6px; margin-top: 13px; padding: 8px 9px; color: var(--color-fulfil); background: var(--color-fulfil-soft); border-radius: 5px; font-size: 9px; }
 .inbox-empty { height: 100%; display: grid; place-content: center; justify-items: center; gap: 8px; color: var(--color-text-faint); font-size: 11px; }
 
+.consumer-transaction-trace { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+.consumer-transaction-trace > header { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 13px 16px; border-bottom: 1px solid var(--color-border); }
+.consumer-transaction-trace > header button { width: 30px; height: 30px; display: grid; place-items: center; color: var(--color-text-faint); border: 1px solid var(--color-border); border-radius: 6px; }
+.consumer-transaction-trace > header h3 { margin: 2px 0; font-size: 13px; }
+.consumer-transaction-trace > header code { color: var(--color-text-faint); font-size: 7px; }
+.trace-chain { display: flex; align-items: center; gap: 5px; color: var(--color-fulfil); font-size: 8px; }
+.trace-runtime { display: flex; align-items: center; gap: 6px; padding: 7px 16px; color: var(--color-data); background: var(--color-data-soft); font-size: 8px; }
+.trace-runtime b { margin-left: auto; }
+.consumer-transaction-trace > ol { min-height: 0; overflow: auto; margin: 0; padding: 12px 16px; list-style: none; }
+.consumer-transaction-trace > ol li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--color-border); }
+.consumer-transaction-trace > ol li > span { width: 27px; height: 27px; display: grid; place-items: center; color: var(--color-data); background: var(--color-data-soft); border-radius: 5px; }
+.consumer-transaction-trace li header { display: flex; justify-content: space-between; gap: 8px; }
+.consumer-transaction-trace li strong { font-size: 9px; }
+.consumer-transaction-trace li time,.consumer-transaction-trace li small { color: var(--color-text-faint); font-size: 7px; }
+.consumer-transaction-trace li p { margin: 3px 0; color: var(--color-text-dim); font-size: 8px; line-height: 1.45; }
+
 .memory-decision-panel { padding: 22px 16px; border-left: 1px solid var(--color-border); background: var(--color-surface-0); }
 .memory-orb { width: 46px; height: 46px; display: grid; place-items: center; margin-bottom: 16px; color: var(--color-verify); background: var(--color-verify-soft); border: 1px solid var(--color-verify); border-radius: 8px; }
 .memory-decision-panel p { margin: 8px 0 16px; color: var(--color-text-dim); font-size: 10px; line-height: 1.6; }

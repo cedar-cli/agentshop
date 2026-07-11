@@ -81,6 +81,7 @@ export async function runActiveSalesWorkflow(
   router: EventRouter,
   transactionId: string,
   agent?: ActiveSalesLlmAgent,
+  decisionDelayMs = 0,
 ): Promise<void> {
   await router.publish({
     transactionId, type: "active-sale.product.ingested", source: "seller-catalog",
@@ -137,6 +138,10 @@ export async function runActiveSalesWorkflow(
         generatedBy: proposal.generatedBy, fallbackReason: proposal.fallbackReason,
       },
     });
+  }
+
+  if (decisionDelayMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, decisionDelayMs));
   }
 
   await router.publish({

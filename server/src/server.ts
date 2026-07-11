@@ -55,6 +55,7 @@ const service = new TransactionService({
   sellerCAnswerGenerator: evidenceAnswerGenerator,
   laptopLlmAgent: new OpenAILaptopAgent(),
   activeSalesLlmAgent: new OpenAIActiveSalesAgent(),
+  activeSalesDecisionDelayMs: 1500,
   demandNetworkLlmAgent: new OpenAIDemandNetworkAgent(),
 });
 const app = buildApp(service, {

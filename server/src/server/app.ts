@@ -43,6 +43,26 @@ export function buildApp(
 
   app.get("/api/seller/products", async () => ({ products: service.listSellerProducts() }));
 
+  app.get("/api/merchant/transactions", async () => ({ transactions: service.listMerchantTransactions() }));
+
+  app.get("/api/merchant/transactions/events", async (request, reply) => {
+    reply.hijack();
+    reply.raw.writeHead(200, {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+    reply.raw.write("retry: 1000\n\n");
+    const unsubscribe = service.subscribeMerchantTransactions((update) => {
+      reply.raw.write(`id: ${update.sequence}\n`);
+      reply.raw.write(`event: ${update.type}\n`);
+      reply.raw.write(`data: ${JSON.stringify(update)}\n\n`);
+    });
+    const heartbeat = setInterval(() => reply.raw.write(": heartbeat\n\n"), 15_000);
+    request.raw.on("close", () => { clearInterval(heartbeat); unsubscribe(); });
+  });
+
   app.post<{ Params: { id: string } }>("/api/seller/products/:id/activate", async (request, reply) => {
     const transactionId = service.createActiveSalesDemo(request.params.id);
     if (!transactionId) return reply.status(404).send({ error: "seller_product_not_found" });

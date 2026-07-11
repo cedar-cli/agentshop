@@ -8,6 +8,7 @@ import type { CounterNegotiator } from "../agents/counter-negotiator.js";
 import type { LaptopLlmAgent } from "../llm/laptop-agent.js";
 import type { ActiveSalesLlmAgent } from "../llm/active-sales-agent.js";
 import type { DemandNetworkLlmAgent } from "../llm/demand-network-agent.js";
+import type { DemandNeedFact } from "../llm/demand-network-agent.js";
 import { SellerAgent } from "../agents/seller-agent.js";
 import {
   sellerProfiles,
@@ -33,6 +34,7 @@ import { activeSalesProduct, runActiveSalesWorkflow } from "../scenario/active-s
 import { runDemandNetworkWorkflow } from "../scenario/demand-network-workflow.js";
 import { SseHub, type SseListener } from "../server/sse-hub.js";
 import { EventStore, type StoredEvent } from "../store/event-store.js";
+import { projectMerchantTransaction, type MerchantTransactionProjection } from "./merchant-transactions.js";
 
 export type TransactionStatus =
   | "queued"
@@ -66,6 +68,12 @@ export interface TransactionSummary extends TransactionRecord {
   eventCount: number;
 }
 
+export interface MerchantTransactionUpdate {
+  sequence: number;
+  type: "merchant.transaction.upserted";
+  transaction: MerchantTransactionProjection;
+}
+
 export interface TransactionServiceOptions {
   databaseFilename: string;
   proposalGenerator: ProposalGenerator;
@@ -81,6 +89,7 @@ export interface TransactionServiceOptions {
   sellerCAnswerGenerator?: EvidenceAnswerGenerator;
   laptopLlmAgent?: LaptopLlmAgent;
   activeSalesLlmAgent?: ActiveSalesLlmAgent;
+  activeSalesDecisionDelayMs?: number;
   demandNetworkLlmAgent?: DemandNetworkLlmAgent;
 }
 
@@ -94,6 +103,7 @@ export class TransactionService {
   private readonly newbornBeddingStepDelayMs: number;
   private readonly laptopLlmAgent?: LaptopLlmAgent;
   private readonly activeSalesLlmAgent?: ActiveSalesLlmAgent;
+  private readonly activeSalesDecisionDelayMs: number;
   private readonly demandNetworkLlmAgent?: DemandNetworkLlmAgent;
   private readonly proposalGenerator: ProposalGenerator;
   private readonly counterNegotiator?: CounterNegotiator;
@@ -101,13 +111,17 @@ export class TransactionService {
   private readonly activeServiceTransactions = new Map<string, string>();
   private readonly inboxMessages = new Map(fixtureInboxMessages.map((message) => [message.id, { ...message, evidence: [...message.evidence] }]));
   private readonly inboxListeners = new Set<(update: InboxUpdate) => void>();
+  private readonly merchantTransactionListeners = new Set<(update: MerchantTransactionUpdate) => void>();
+  private readonly consumerMarketNeeds = new Map<string, DemandNeedFact>();
   private inboxSequence = 0;
+  private merchantTransactionSequence = 0;
 
   constructor(options: TransactionServiceOptions) {
     const profiles = options.profiles ?? sellerProfiles;
     this.newbornBeddingStepDelayMs = options.newbornBeddingStepDelayMs ?? 0;
     this.laptopLlmAgent = options.laptopLlmAgent;
     this.activeSalesLlmAgent = options.activeSalesLlmAgent;
+    this.activeSalesDecisionDelayMs = Math.max(0, options.activeSalesDecisionDelayMs ?? 0);
     this.demandNetworkLlmAgent = options.demandNetworkLlmAgent;
     this.proposalGenerator = options.proposalGenerator;
     this.counterNegotiator = options.counterNegotiator;
@@ -140,7 +154,12 @@ export class TransactionService {
       sellerCAnswerGenerator: options.sellerCAnswerGenerator,
     });
 
-    this.router.observe((event) => this.hub.publish(event));
+    this.router.observe((event) => {
+      this.hub.publish(event);
+      this.captureConsumerMarketNeed(event);
+      this.projectActiveSalesProposal(event);
+      this.publishMerchantTransaction(event.transactionId);
+    });
   }
 
   /**
@@ -190,6 +209,20 @@ export class TransactionService {
 
   createDemandNetworkDemo(request: DemandNetworkRequest): string {
     return this.enqueue("demand-network-demo", request);
+  }
+
+  listMerchantTransactions(): MerchantTransactionProjection[] {
+    return [...this.transactions.keys()]
+      .map((transactionId) => this.get(transactionId))
+      .filter((snapshot): snapshot is TransactionSnapshot => Boolean(snapshot))
+      .map(projectMerchantTransaction)
+      .filter((transaction): transaction is MerchantTransactionProjection => Boolean(transaction))
+      .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
+  }
+
+  subscribeMerchantTransactions(listener: (update: MerchantTransactionUpdate) => void): () => void {
+    this.merchantTransactionListeners.add(listener);
+    return () => this.merchantTransactionListeners.delete(listener);
   }
 
   listActiveServices(): ActiveServiceSnapshot[] {
@@ -269,14 +302,17 @@ export class TransactionService {
       throw new Error("transaction_not_awaiting_approval");
     }
     transaction.status = "running";
+    this.publishMerchantTransaction(transactionId);
     try {
       await completeApprovedLaptopPurchase(this.router, transactionId, approval);
       transaction.status = "completed";
       this.laptopApprovals.delete(transactionId);
+      this.publishMerchantTransaction(transactionId);
       return this.get(transactionId);
     } catch (error) {
       transaction.status = "failed";
       transaction.error = error instanceof Error ? error.message : String(error);
+      this.publishMerchantTransaction(transactionId);
       throw error;
     }
   }
@@ -346,6 +382,7 @@ export class TransactionService {
     if (!transaction) return;
 
     transaction.status = "running";
+    this.publishMerchantTransaction(transactionId);
 
     try {
       if (transaction.kind === "newborn-bedding-demo") {
@@ -360,6 +397,7 @@ export class TransactionService {
         );
         this.laptopApprovals.set(transactionId, approval);
         transaction.status = "awaiting-approval";
+        this.publishMerchantTransaction(transactionId);
         return;
       } else if (transaction.kind === "household-restock-demo") {
         await runHouseholdRestockWorkflow(
@@ -370,14 +408,15 @@ export class TransactionService {
         );
         this.projectRestockInbox(transactionId);
       } else if (transaction.kind === "active-sales-demo") {
-        await runActiveSalesWorkflow(this.router, transactionId, this.activeSalesLlmAgent);
-        this.projectActiveSalesInbox(transactionId);
+        await runActiveSalesWorkflow(this.router, transactionId, this.activeSalesLlmAgent, this.activeSalesDecisionDelayMs);
+        this.projectActiveSalesCompletion(transactionId);
       } else if (transaction.kind === "demand-network-demo") {
         await runDemandNetworkWorkflow(
           this.router,
           transactionId,
           transaction.request as DemandNetworkRequest,
           this.demandNetworkLlmAgent,
+          [...this.consumerMarketNeeds.values()],
         );
       } else {
         // 采购：保留原有发布 purchase.requested 的行为
@@ -389,10 +428,12 @@ export class TransactionService {
         });
       }
       transaction.status = "completed";
+      this.publishMerchantTransaction(transactionId);
     } catch (error) {
       transaction.status = "failed";
       transaction.error =
         error instanceof Error ? error.message : String(error);
+      this.publishMerchantTransaction(transactionId);
     }
   }
 
@@ -443,7 +484,44 @@ export class TransactionService {
     this.publishInbox("inbox.message.upserted", message);
   }
 
-  private projectActiveSalesInbox(transactionId: string): void {
+  private projectActiveSalesProposal(event: StoredEvent): void {
+    if (event.type !== "active-sale.proposal.routed" || event.payload.buyerId !== "mia") return;
+    const transactionId = event.transactionId;
+    const passport = this.store.list(transactionId).find((item) => item.type === "active-sale.passport.published");
+    const message: InboxMessage = {
+      id: `inbox-active-sale-${transactionId}`,
+      type: "opportunity",
+      source: "seller-agent",
+      runtime: "live",
+      status: "unread",
+      merchant: "DeepLumen Seller Agent",
+      title: "Seller Agent 提交低敏床品提案",
+      receivedAt: event.timestamp,
+      category: "母婴床品",
+      offer: "$164 · 72 小时送达 · 等待 Consumer Agent 自动评估",
+      evidence: [
+        "提案通过 Open 授权 Inbox 路由",
+        passport?.type === "active-sale.passport.published"
+          ? `Product Passport ${passport.payload.coverageAfter}% · ${passport.payload.generatedBy.toUpperCase()}`
+          : "Product Passport 已发布",
+        `匹配分 ${event.payload.matchScore}`,
+      ],
+      verdict: "valuable",
+      verdictLabel: "自动评估中",
+      valueScore: event.payload.matchScore,
+      agentEvaluation: event.payload.pitch,
+      requiresAction: false,
+      generatedBy: event.payload.generatedBy === "llm" ? "llm" : "rule",
+      memoryRecommended: false,
+      memoryReason: "成交前不写入长期记忆，等待 Consumer Agent 完成决策。",
+      transactionId,
+      chainValid: this.store.verify(transactionId),
+    };
+    this.inboxMessages.set(message.id, message);
+    this.publishInbox("inbox.message.upserted", message);
+  }
+
+  private projectActiveSalesCompletion(transactionId: string): void {
     const snapshot = this.get(transactionId);
     if (!snapshot) return;
     const completed = snapshot.events.find((event) => event.type === "active-sale.completed");
@@ -452,6 +530,7 @@ export class TransactionService {
     );
     const passport = snapshot.events.find((event) => event.type === "active-sale.passport.published");
     if (completed?.type !== "active-sale.completed" || proposal?.type !== "active-sale.proposal.routed") return;
+    const pending = this.inboxMessages.get(`inbox-active-sale-${transactionId}`);
     const message: InboxMessage = {
       id: `inbox-active-sale-${transactionId}`,
       type: "completed",
@@ -460,7 +539,7 @@ export class TransactionService {
       status: "unread",
       merchant: "DeepLumen Seller Agent",
       title: "授权主动提案已自动成交",
-      receivedAt: new Date().toISOString(),
+      receivedAt: pending?.receivedAt ?? new Date().toISOString(),
       category: "母婴床品",
       offer: `$${completed.payload.amountUsd} · 72 小时送达 · 人类点击 ${completed.payload.humanClicks} 次`,
       evidence: [
@@ -473,7 +552,7 @@ export class TransactionService {
       verdict: "valuable",
       verdictLabel: "自动成交",
       valueScore: proposal.payload.matchScore,
-      agentEvaluation: proposal.payload.pitch,
+      agentEvaluation: pending?.agentEvaluation ?? proposal.payload.pitch,
       requiresAction: false,
       generatedBy: proposal.payload.generatedBy === "llm" ? "llm" : "rule",
       memoryRecommended: true,
@@ -482,7 +561,68 @@ export class TransactionService {
       chainValid: snapshot.chainValid,
     };
     this.inboxMessages.set(message.id, message);
-    this.publishInbox("inbox.message.upserted", message);
+    this.publishInbox(pending ? "inbox.message.updated" : "inbox.message.upserted", message);
+  }
+
+  private captureConsumerMarketNeed(event: StoredEvent): void {
+    if (event.type === "laptop.intent.structured") {
+      this.consumerMarketNeeds.set(event.transactionId, {
+        id: `LIVE-${event.transactionId.slice(-6)}`,
+        buyerType: "consumer",
+        text: event.payload.requestText,
+        source: "consumer-transaction",
+        fallbackIntent: {
+          scene: "出差轻薄本采购",
+          quantity: 1,
+          budgetUsd: Number((event.payload.budgetCny / 7.2).toFixed(2)),
+          deadlineDays: event.payload.deadlineHours / 24,
+          requirements: [`重量 ≤${event.payload.maxWeightKg}kg`, `续航 ≥${event.payload.minBatteryHours}h`, event.payload.requiresNationalWarranty ? "全国联保" : "保修可选"],
+        },
+      });
+      return;
+    }
+    if (event.type === "restock.intent.created") {
+      this.consumerMarketNeeds.set(event.transactionId, {
+        id: `LIVE-${event.transactionId.slice(-6)}`,
+        buyerType: "consumer",
+        text: `${event.payload.product}；${event.payload.reason}`,
+        source: "consumer-transaction",
+        fallbackIntent: {
+          scene: "家庭日用品自主补库", quantity: event.payload.quantity,
+          budgetUsd: Number((event.payload.budgetCny / 7.2).toFixed(2)),
+          deadlineDays: event.payload.deadlineHours / 24,
+          requirements: event.payload.constraints,
+        },
+      });
+      return;
+    }
+    if (event.type === "intent.published") {
+      this.consumerMarketNeeds.set(event.transactionId, {
+        id: `LIVE-${event.transactionId.slice(-6)}`,
+        buyerType: "consumer",
+        text: event.payload.productDescription,
+        source: "consumer-transaction",
+        fallbackIntent: {
+          scene: "可执行消费意图", quantity: 1, budgetUsd: event.payload.budgetUsd,
+          deadlineDays: event.payload.deadlineHours / 24,
+          requirements: event.payload.evidenceRequirements.map((requirement) => requirement.description),
+        },
+      });
+    }
+  }
+
+  private publishMerchantTransaction(transactionId: string): void {
+    if (this.merchantTransactionListeners.size === 0) return;
+    const snapshot = this.get(transactionId);
+    if (!snapshot) return;
+    const transaction = projectMerchantTransaction(snapshot);
+    if (!transaction) return;
+    const update: MerchantTransactionUpdate = {
+      sequence: ++this.merchantTransactionSequence,
+      type: "merchant.transaction.upserted",
+      transaction,
+    };
+    for (const listener of this.merchantTransactionListeners) listener(update);
   }
 
   private publishInbox(type: InboxUpdate["type"], message: InboxMessage): void {

@@ -1,6 +1,7 @@
 import { Archive, Brain, Check, Inbox, Radio, ShieldBan, Sparkles } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { InboxRuntime } from '../../hooks/useInbox'
+import { ConsumerTransactionTrace } from './ConsumerTransactionTrace'
 
 type InboxFilter = 'all' | 'approval' | 'completed' | 'blocked'
 
@@ -13,6 +14,7 @@ export function ConsumerInbox({
 }) {
   const [selectedId, setSelectedId] = useState(inbox.messages[0]?.id ?? '')
   const [filter, setFilter] = useState<InboxFilter>('all')
+  const [traceTransactionId, setTraceTransactionId] = useState<string>()
   const [actionError, setActionError] = useState<string>()
   const selected = inbox.messages.find((item) => item.id === selectedId) ?? inbox.messages[0]
 
@@ -44,6 +46,7 @@ export function ConsumerInbox({
     }
   }
 
+  if (traceTransactionId) return <ConsumerTransactionTrace transactionId={traceTransactionId} onBack={() => setTraceTransactionId(undefined)} />
   if (!selected) return <div className="inbox-empty"><Inbox size={20} />Inbox 暂无消息</div>
 
   return (
@@ -106,7 +109,11 @@ export function ConsumerInbox({
         </div>
 
         {selected.type === 'completed' && <div className="inbox-no-action"><Check size={13} />已自动处理，无需人工操作</div>}
-        {selected.relatedPurchaseId && (
+        {selected.transactionId ? (
+          <button className="open-related" type="button" onClick={() => setTraceTransactionId(selected.transactionId)}>
+            查看共享交易链
+          </button>
+        ) : selected.relatedPurchaseId && (
           <button className="open-related" type="button" onClick={() => onOpenPurchase(selected.relatedPurchaseId!)}>
             {selected.type === 'completed' ? '查看真实交易链' : '打开关联购买任务'}
           </button>

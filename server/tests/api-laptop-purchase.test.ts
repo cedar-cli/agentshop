@@ -39,6 +39,8 @@ describe("laptop purchase demo API", () => {
     });
     services.push(service);
     const app = buildApp(service);
+    const merchantUpdates: string[] = [];
+    const unsubscribeMerchant = service.subscribeMerchantTransactions((update) => merchantUpdates.push(update.transaction.id));
 
     const create = await app.inject({
       method: "POST",
@@ -76,6 +78,12 @@ describe("laptop purchase demo API", () => {
       "laptop.attestation.issued",
     ]);
 
+    const merchant = await app.inject({ method: "GET", url: "/api/merchant/transactions" });
+    expect(merchant.json<{ transactions: Array<{ id: string; kind: string; product: string; status: string }> }>().transactions)
+      .toContainEqual(expect.objectContaining({ id: transactionId, kind: "laptop-demo", product: "14 英寸 AI 轻薄本", status: "completed" }));
+    expect(merchantUpdates).toContain(transactionId);
+
+    unsubscribeMerchant();
     await app.close();
   });
 });

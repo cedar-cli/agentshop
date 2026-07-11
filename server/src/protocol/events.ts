@@ -684,7 +684,7 @@ export interface DemandNeedReceived {
   needId: string;
   buyerType: "consumer" | "business";
   text: string;
-  source: "demo-fixture";
+  source: "demo-fixture" | "consumer-transaction";
 }
 
 export interface DemandIntentStructured {

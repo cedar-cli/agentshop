@@ -19,7 +19,7 @@ import { useState, type ReactNode } from 'react'
 import type { StoredEvent } from '../live/types'
 import { useDemandNetwork } from '../../hooks/useDemandNetwork'
 
-interface NeedPayload { needId: string; buyerType: string; text: string }
+interface NeedPayload { needId: string; buyerType: string; text: string; source: 'demo-fixture' | 'consumer-transaction' }
 interface IntentPayload { needId: string; scene: string; quantity: number; budgetUsd: number; deadlineDays: number; requirements: string[]; generatedBy: 'llm' | 'fallback' }
 interface MarketPayload { sampleSize: number; simulatedMarketIntents: number; clusters: Array<{ label: string; sampleHits: number; simulatedDemand: number; growthPercent: number }> }
 interface ForecastPayload { selectedProduct: string; candidates: Array<{ product: string; marketHeat: number; supplyFit: number; marginFit: number; totalScore: number }>; reason: string }
@@ -97,10 +97,10 @@ export function DemandNetwork() {
         <FlowStage number={1} title="买家需求流" subtitle="N buyers / live input" icon={<Bot size={15} />} active={stage === 1} done={reached(runtime.events, 1)}>
           <div className="need-stream">
             {(needs.length ? needs : [
-              { needId: 'A17', buyerType: 'consumer', text: '新生儿低敏床品 · ≤$180 · 72h' },
-              { needId: 'B04', buyerType: 'business', text: '幼儿园批采 120 套 · 10 天' },
-              { needId: 'H09', buyerType: 'business', text: '酒店低敏客房 · 20 rooms' },
-            ]).slice(0, 3).map((need) => <div key={need.needId}><b>{need.needId}</b><span>{need.text}</span></div>)}
+              { needId: 'A17', buyerType: 'consumer', text: '新生儿低敏床品 · ≤$180 · 72h', source: 'demo-fixture' as const },
+              { needId: 'B04', buyerType: 'business', text: '幼儿园批采 120 套 · 10 天', source: 'demo-fixture' as const },
+              { needId: 'H09', buyerType: 'business', text: '酒店低敏客房 · 20 rooms', source: 'demo-fixture' as const },
+            ]).slice(0, 3).map((need) => <div key={need.needId}><b>{need.needId}</b><span>{need.text}</span>{need.source === 'consumer-transaction' && <em>LIVE C-AGENT</em>}</div>)}
           </div>
         </FlowStage>
 

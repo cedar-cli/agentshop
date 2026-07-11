@@ -5,12 +5,12 @@ import type { DemandNetworkLlmAgent, DemandNeedFact, SupplyNegotiationDraft } fr
 import { fallbackNegotiation } from "../llm/demand-network-agent.js";
 
 export const demandNeeds: DemandNeedFact[] = [
-  { id: "A17", buyerType: "consumer", text: "宝宝睡觉总起疹子，想换一套安全的床品，预算 180 美元，三天内送到。", fallbackIntent: { scene: "新生儿低敏睡眠", quantity: 1, budgetUsd: 180, deadlineDays: 3, requirements: ["低敏材料", "证据可验证", "可机洗"] } },
-  { id: "B04", buyerType: "business", text: "幼儿园下月开班，需要 120 套床品，预算 12000 美元，十天交付。", fallbackIntent: { scene: "幼儿园批量采购", quantity: 120, budgetUsd: 12000, deadlineDays: 10, requirements: ["批量交付", "材料凭证", "机构退货"] } },
-  { id: "H09", buyerType: "business", text: "酒店要做 20 间低敏客房，要求耐商洗、批次可追踪。", fallbackIntent: { scene: "酒店低敏客房", quantity: 20, budgetUsd: 6000, deadlineDays: 14, requirements: ["耐商洗", "批次追踪", "低敏证明"] } },
-  { id: "P31", buyerType: "consumer", text: "旅行床品心愿单价格跌破 145 美元就自动购买。", fallbackIntent: { scene: "低价触发购买", quantity: 1, budgetUsd: 145, deadlineDays: 7, requirements: ["可信低价", "自动购买授权"] } },
-  { id: "R08", buyerType: "consumer", text: "过敏季每 90 天自动补一套可机洗床品。", fallbackIntent: { scene: "周期补货", quantity: 1, budgetUsd: 170, deadlineDays: 5, requirements: ["可机洗", "低敏证明", "订阅补货"] } },
-  { id: "D12", buyerType: "business", text: "托育中心紧急加单 40 套，五天内送达。", fallbackIntent: { scene: "托育中心紧急补货", quantity: 40, budgetUsd: 4800, deadlineDays: 5, requirements: ["五天交付", "批量履约", "材料凭证"] } },
+  { id: "A17", buyerType: "consumer", text: "宝宝睡觉总起疹子，想换一套安全的床品，预算 180 美元，三天内送到。", source: "demo-fixture", fallbackIntent: { scene: "新生儿低敏睡眠", quantity: 1, budgetUsd: 180, deadlineDays: 3, requirements: ["低敏材料", "证据可验证", "可机洗"] } },
+  { id: "B04", buyerType: "business", text: "幼儿园下月开班，需要 120 套床品，预算 12000 美元，十天交付。", source: "demo-fixture", fallbackIntent: { scene: "幼儿园批量采购", quantity: 120, budgetUsd: 12000, deadlineDays: 10, requirements: ["批量交付", "材料凭证", "机构退货"] } },
+  { id: "H09", buyerType: "business", text: "酒店要做 20 间低敏客房，要求耐商洗、批次可追踪。", source: "demo-fixture", fallbackIntent: { scene: "酒店低敏客房", quantity: 20, budgetUsd: 6000, deadlineDays: 14, requirements: ["耐商洗", "批次追踪", "低敏证明"] } },
+  { id: "P31", buyerType: "consumer", text: "旅行床品心愿单价格跌破 145 美元就自动购买。", source: "demo-fixture", fallbackIntent: { scene: "低价触发购买", quantity: 1, budgetUsd: 145, deadlineDays: 7, requirements: ["可信低价", "自动购买授权"] } },
+  { id: "R08", buyerType: "consumer", text: "过敏季每 90 天自动补一套可机洗床品。", source: "demo-fixture", fallbackIntent: { scene: "周期补货", quantity: 1, budgetUsd: 170, deadlineDays: 5, requirements: ["可机洗", "低敏证明", "订阅补货"] } },
+  { id: "D12", buyerType: "business", text: "托育中心紧急加单 40 套，五天内送达。", source: "demo-fixture", fallbackIntent: { scene: "托育中心紧急补货", quantity: 40, budgetUsd: 4800, deadlineDays: 5, requirements: ["五天交付", "批量履约", "材料凭证"] } },
 ];
 
 const distributors = [
@@ -84,15 +84,19 @@ export async function runDemandNetworkWorkflow(
   transactionId: string,
   request: DemandNetworkRequest,
   agent?: DemandNetworkLlmAgent,
+  consumerNeeds: DemandNeedFact[] = [],
 ): Promise<void> {
-  for (const need of demandNeeds) {
+  const allNeeds = [...consumerNeeds, ...demandNeeds.filter((fixture) =>
+    !consumerNeeds.some((need) => need.id === fixture.id),
+  )];
+  for (const need of allNeeds) {
     await router.publish({
       transactionId, type: "demand.need.received", source: "buyer-agent-network",
-      payload: { needId: need.id, buyerType: need.buyerType, text: need.text, source: "demo-fixture" },
+      payload: { needId: need.id, buyerType: need.buyerType, text: need.text, source: need.source },
     });
   }
 
-  const structured = await Promise.all(demandNeeds.map(async (need, index) => {
+  const structured = await Promise.all(allNeeds.map(async (need, index) => {
     const result = index < 3 ? await structureNeed(need, agent) : {
       intent: need.fallbackIntent, generatedBy: "fallback" as const, fallbackReason: "Demo Fixture 结构化意图",
     };

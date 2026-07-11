@@ -287,7 +287,7 @@ export const demandNetworkRequestSchema = z.object({
 });
 const demandNeedReceivedSchema = z.object({
   needId: z.string().min(1), buyerType: z.enum(["consumer", "business"]),
-  text: z.string().min(1).max(500), source: z.literal("demo-fixture"),
+  text: z.string().min(1).max(500), source: z.enum(["demo-fixture", "consumer-transaction"]),
 });
 const demandIntentStructuredSchema = z.object({
   needId: z.string().min(1), scene: z.string().min(1), quantity: z.number().int().positive(),

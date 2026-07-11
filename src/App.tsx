@@ -24,9 +24,15 @@ export function App() {
       <TopBar active={active} onSwitch={setActive} />
       <div className="app-body">
         <main className="app-main">
-          {active === 'consumer' && <ConsumerModule />}
-          {active === 'topology' && <TopologyModule />}
-          {active === 'merchant' && <MerchantModule />}
+          <section className="module-shell" hidden={active !== 'consumer'}>
+            <ConsumerModule />
+          </section>
+          <section className="module-shell" hidden={active !== 'topology'}>
+            <TopologyModule />
+          </section>
+          <section className="module-shell" hidden={active !== 'merchant'}>
+            <MerchantModule />
+          </section>
         </main>
         {active === 'topology' && <ChainFeed />}
       </div>

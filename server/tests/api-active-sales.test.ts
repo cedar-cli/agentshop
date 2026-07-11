@@ -31,6 +31,10 @@ describe("active sales router API", () => {
   it("routes only authorized buyers and projects the completed sale to Inbox", async () => {
     const service = makeService();
     const app = buildApp(service);
+    const inboxStages: string[] = [];
+    const unsubscribe = service.subscribeInbox((update) => {
+      if (update.message.source === "seller-agent") inboxStages.push(update.message.type);
+    });
 
     const products = await app.inject({ method: "GET", url: "/api/seller/products" });
     expect(products.statusCode).toBe(200);
@@ -60,7 +64,13 @@ describe("active sales router API", () => {
     const message = inbox.json<{ messages: Array<{ transactionId?: string; runtime: string; source: string }> }>().messages
       .find((item) => item.transactionId === transactionId);
     expect(message).toMatchObject({ runtime: "live", source: "seller-agent" });
+    expect(inboxStages).toEqual(["opportunity", "completed"]);
 
+    const merchant = await app.inject({ method: "GET", url: "/api/merchant/transactions" });
+    expect(merchant.json<{ transactions: Array<{ id: string; buyerName: string; amount?: number }> }>().transactions)
+      .toContainEqual(expect.objectContaining({ id: transactionId, buyerName: "Mia Park · New Parent", amount: 164 }));
+
+    unsubscribe();
     await app.close();
   });
 

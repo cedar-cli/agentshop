@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createFallbackProposal } from "../src/agents/proposal-generator.js";
 import { TransactionService } from "../src/app/transaction-service.js";
 import type { DemandNetworkLlmAgent } from "../src/llm/demand-network-agent.js";
+import type { LaptopLlmAgent } from "../src/llm/laptop-agent.js";
 import { buildApp } from "../src/server/app.js";
 
 const services: TransactionService[] = [];
@@ -95,6 +96,53 @@ describe("demand-to-distribution API", () => {
       payload: { commissionRate: 20, maxDiscountPercent: 1 },
     });
     expect(response.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it("aggregates a real consumer transaction before fixture market needs", async () => {
+    const laptopLlm: LaptopLlmAgent = {
+      async parseIntent() {
+        return {
+          product: "14 英寸 AI 轻薄本", budgetCny: 9000, deadlineHours: 72,
+          maxWeightKg: 1.3, minBatteryHours: 12, requiresNationalWarranty: true,
+          priorities: { timeliness: 30, spec: 30, price: 25, afterSales: 15 },
+        };
+      },
+      async generateProposal(seller) { return { quotedPriceCny: seller.preferredPriceCny, reasoning: "测试报价" }; },
+      async negotiate(seller, _intent, offer) { return { finalPriceCny: Math.max(seller.minimumPriceCny, offer.targetPriceCny), reasoning: "测试议价" }; },
+    };
+    const demandLlm: DemandNetworkLlmAgent = {
+      async parseIntent(need) { return need.fallbackIntent; },
+      async negotiateSupply() { return { unitPriceUsd: 74, depositPercent: 30, deliveryDays: 9, delayPenaltyPercentPerDay: 1.5, reasoning: "测试供应协商" }; },
+    };
+    const service = new TransactionService({
+      databaseFilename: ":memory:",
+      proposalGenerator: { async generate(profile, request) { return createFallbackProposal(profile, request); } },
+      laptopLlmAgent: laptopLlm,
+      demandNetworkLlmAgent: demandLlm,
+    });
+    services.push(service);
+    const app = buildApp(service);
+    const laptop = await app.inject({
+      method: "POST", url: "/api/demo/laptop-purchase",
+      payload: { requestText: "下周出差前买轻薄本，预算9000元，三天内送达且全国联保" },
+    });
+    const laptopId = laptop.json<{ transactionId: string }>().transactionId;
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      if (service.get(laptopId)?.status === "awaiting-approval") break;
+      await delay(5);
+    }
+
+    const demand = await app.inject({
+      method: "POST", url: "/api/seller/demand-network",
+      payload: { commissionRate: 3, maxDiscountPercent: 8 },
+    });
+    const snapshot = await waitForCompletion(service, demand.json<{ transactionId: string }>().transactionId);
+    const firstNeed = snapshot.events.find((event) => event.type === "demand.need.received");
+    expect(firstNeed?.payload).toMatchObject({ source: "consumer-transaction" });
+    expect(firstNeed?.payload.text).toContain("轻薄本");
+    expect(snapshot.events.filter((event) => event.type === "demand.need.received")).toHaveLength(7);
+
     await app.close();
   });
 });
