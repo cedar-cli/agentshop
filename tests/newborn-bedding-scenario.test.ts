@@ -70,8 +70,8 @@ describe("newborn bedding intent", () => {
 describe("seller pricing and delivery", () => {
   it("locks Seller A price and 2-day delivery", () => {
     const a = createSellerA();
-    expect(a.initialPriceUsd).toBe(139);
-    expect(a.finalPriceUsd).toBe(139);
+    expect(a.initialPriceUsd).toBe(151);
+    expect(a.finalPriceUsd).toBe(151);
     expect(a.deliveryHours).toBe(48);
     expect(a.bundle).toBeNull();
   });
@@ -86,6 +86,7 @@ describe("seller pricing and delivery", () => {
   });
 
   it("locks Seller C initial 172, bundled final 164 and 3-day delivery", () => {
+    const a = createSellerA();
     const c = createSellerC();
     expect(c.initialPriceUsd).toBe(172);
     expect(c.finalPriceUsd).toBe(164);
@@ -95,6 +96,10 @@ describe("seller pricing and delivery", () => {
     // 最终价与 bundle 价一致，且不超预算
     expect(c.finalPriceUsd).toBe(c.bundle?.bundledPriceUsd);
     expect(c.finalPriceUsd).toBeLessThanOrEqual(180);
+    // 询价阶段 Seller C 比 Seller A 贵约 14%，与演示谈判台词一致
+    const initialPremiumPercent =
+      ((c.initialPriceUsd - a.initialPriceUsd) / a.initialPriceUsd) * 100;
+    expect(Math.round(initialPremiumPercent)).toBe(14);
   });
 });
 
@@ -137,6 +142,24 @@ describe("evidence gaps", () => {
       expect(credential.validUntil).toBeTruthy();
     }
   });
+
+  it("matches every credential type to its referenced evidence requirement", () => {
+    const scenario = createNewbornBeddingScenario();
+    const requirements = new Map(
+      scenario.intent.evidenceRequirements.map((requirement) => [
+        requirement.id,
+        requirement,
+      ]),
+    );
+
+    for (const seller of scenario.sellers) {
+      for (const credential of seller.credentials) {
+        const requirement = requirements.get(credential.requirementId);
+        expect(requirement).toBeDefined();
+        expect(credential.type).toBe(requirement?.kind);
+      }
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -154,11 +177,17 @@ describe("ranking before and after verification", () => {
     expect(a.postVerificationScore.riskScore).toBeGreaterThan(0.15);
   });
 
-  it("Seller B drops on delivery confidence despite complete evidence", () => {
+  it("rejects Seller B for violating the hard delivery deadline", () => {
+    const intent = createNewbornBeddingIntent();
     const b = createSellerB();
     // 交期超限使验证后的交付信心显著低于验证前
     expect(b.postVerificationScore.deliveryConfidence).toBeLessThan(
       b.preVerificationScore.deliveryConfidence,
+    );
+    expect(b.deliveryHours).toBeGreaterThan(intent.deadlineHours);
+    expect(b.postVerificationScore.stage).toBe("rejected");
+    expect(b.postVerificationScore.riskScore).toBeGreaterThan(
+      intent.riskThreshold,
     );
   });
 

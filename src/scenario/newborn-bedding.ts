@@ -216,15 +216,15 @@ function demoCredential(params: {
 // ---------------------------------------------------------------------------
 
 /**
- * Seller A：USD 139 / 2 天送达 / 材料证明不完整。
+ * Seller A：USD 151 / 2 天送达 / 材料证明不完整。
  * 叙事：初始靠低价排名靠前，但机器询证后因关键证据（低敏实验室报告）缺失而掉分。
  */
 export function createSellerA(): SellerScenario {
   return {
     sellerId: "seller-a",
     displayName: "Seller A · 极速低价铺",
-    initialPriceUsd: 139,
-    finalPriceUsd: 139,
+    initialPriceUsd: 151,
+    finalPriceUsd: 151,
     deliveryHours: 48, // 2 天
     // 只提供了材料成分说明，缺低敏实验室报告与退货政策的可验证证据
     credentials: [
@@ -336,17 +336,17 @@ export function createSellerB(): SellerScenario {
       rank: 2,
       stage: "matched",
     },
-    // 验证后：证据核验全部通过（信任更稳），但 120h 超期使交付信心崩塌、总分被拖累，退居第 2
+    // 验证后：证据核验全部通过，但 120h 命中硬性超期条件，因此淘汰并退居第 2
     postVerificationScore: {
       sellerId: "seller-b",
       matchScore: 84,
       trustScore: 94,
       deliveryConfidence: 20,
       priceFit: 82,
-      riskScore: 0.12,
+      riskScore: 0.32,
       totalScore: 74,
       rank: 2,
-      stage: "scored",
+      stage: "rejected",
     },
     bundle: null,
   };
@@ -357,7 +357,7 @@ export function createSellerB(): SellerScenario {
 // ---------------------------------------------------------------------------
 
 /**
- * Seller C：初始 USD 172 / 3 天送达 / 低敏认证+材料组成+配送覆盖+退货政策全齐，
+ * Seller C：初始 USD 172 / 3 天送达 / 低敏检测报告+材料组成+配送覆盖+退货政策全齐，
  * 提供 bundle 后最终 USD 164。
  * 叙事：初始因价格偏高仅列第 3，但机器询证核验四类证据全部可验证、交期恰好达标 72h，
  * 叠加 bundle 让利到 164（仍在预算内、风险低于 0.15），验证后跃居第 1，触发自动购买。
@@ -369,7 +369,7 @@ export function createSellerC(): SellerScenario {
     initialPriceUsd: 172,
     finalPriceUsd: 164, // 提供 bundle 后的最终价
     deliveryHours: 72, // 3 天，恰好卡在交期上限内
-    // 四类证据齐备且均可验证：低敏认证、材料组成、配送覆盖、退货政策
+    // 四类证据齐备且均可验证：低敏检测报告、材料组成、配送覆盖、退货政策
     credentials: [
       demoCredential({
         type: "material-spec",
@@ -381,11 +381,11 @@ export function createSellerC(): SellerScenario {
         validUntil: "2027-03-01T00:00:00+08:00",
       }),
       demoCredential({
-        type: "certification",
+        type: "lab-report",
         requirementId: "hypoallergenic-lab-report",
-        issuer: "Demo 低敏认证机构 C",
-        referenceId: "C-CERT-0042",
-        hash: "demohash-c-cert-0042",
+        issuer: "Demo 低敏检测中心 C",
+        referenceId: "C-LAB-0042",
+        hash: "demohash-c-lab-0042",
         validFrom: "2026-03-01T00:00:00+08:00",
         validUntil: "2027-03-01T00:00:00+08:00",
       }),
