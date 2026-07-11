@@ -8,7 +8,14 @@ import { MerchantModule } from './components/merchant/MerchantModule'
 import './app.css'
 
 export function App() {
-  const [active, setActive] = useState<ModuleKey>('consumer')
+  const requestedModule = new URLSearchParams(window.location.search).get('module')
+  const initialModule: ModuleKey =
+    requestedModule === 'consumer' ||
+    requestedModule === 'topology' ||
+    requestedModule === 'merchant'
+      ? requestedModule
+      : 'consumer'
+  const [active, setActive] = useState<ModuleKey>(initialModule)
 
   useEffect(() => startClock(), [])
 

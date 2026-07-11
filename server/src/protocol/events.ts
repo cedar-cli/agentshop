@@ -22,6 +22,31 @@ export const EVENT_TYPES = [
   "order.authorized",
   // 平台在授权成交后签发一张实时电子回执（含金额、交期承诺与证据快照哈希）
   "receipt.issued",
+  // ---- 出差轻薄本：自然语言委托、受约束报价、人工确认与模拟履约 ----
+  "laptop.purchase.requested",
+  "laptop.intent.structured",
+  "laptop.proposal.submitted",
+  "laptop.seller.rejected",
+  "laptop.seller.selected",
+  "laptop.counter.offer",
+  "laptop.counter.response",
+  "laptop.approval.requested",
+  "laptop.order.confirmed",
+  "laptop.fulfillment.updated",
+  "laptop.attestation.issued",
+  // ---- 家庭日用品自主补库 ----
+  "restock.time.advanced",
+  "restock.inventory.forecasted",
+  "restock.authorization.checked",
+  "restock.intent.created",
+  "restock.proposal.submitted",
+  "restock.seller.selected",
+  "restock.bundle.negotiated",
+  "restock.order.authorized",
+  "restock.order.confirmed",
+  "restock.inventory.updated",
+  "restock.memory.updated",
+  "restock.notification.sent",
 ] as const;
 
 export type AgentEventType = (typeof EVENT_TYPES)[number];
@@ -101,6 +126,220 @@ export interface ConfirmedOrder {
   sellerId: string;
   totalPrice: number;
   status: "confirmed";
+}
+
+export interface LaptopPurchaseRequested {
+  requestText: string;
+}
+
+export interface LaptopIntent {
+  requestText: string;
+  product: string;
+  budgetCny: number;
+  deadlineHours: number;
+  maxWeightKg: number;
+  minBatteryHours: number;
+  requiresNationalWarranty: boolean;
+  priorities: {
+    timeliness: number;
+    spec: number;
+    price: number;
+    afterSales: number;
+  };
+  generatedBy: "llm" | "fallback";
+  fallbackReason?: string;
+}
+
+export interface LaptopProposal {
+  sellerId: string;
+  displayName: string;
+  quotedPriceCny: number;
+  listPriceCny: number;
+  deliveryHours: number;
+  weightKg: number;
+  batteryHours: number;
+  warrantyYears: number;
+  nationalWarranty: boolean;
+  reputation: number;
+  metrics: {
+    timeliness: number;
+    spec: number;
+    afterSales: number;
+    price: number;
+  };
+  reasoning: string;
+  generatedBy: "llm" | "fallback";
+  fallbackReason?: string;
+}
+
+export interface LaptopSellerRejected {
+  sellerId: string;
+  displayName: string;
+  reasons: string[];
+}
+
+export interface LaptopSellerSelected {
+  sellerId: string;
+  displayName: string;
+  score: number;
+  reason: string;
+  proposal: LaptopProposal;
+}
+
+export interface LaptopCounterOffer {
+  sellerId: string;
+  originalPriceCny: number;
+  targetPriceCny: number;
+  reasoning: string;
+}
+
+export interface LaptopCounterResponse {
+  sellerId: string;
+  finalPriceCny: number;
+  concessionCny: number;
+  reasoning: string;
+  generatedBy: "llm" | "fallback";
+  fallbackReason?: string;
+}
+
+export interface LaptopApprovalRequested {
+  sellerId: string;
+  displayName: string;
+  finalPriceCny: number;
+  expiresInMinutes: number;
+  reason: string;
+}
+
+export interface LaptopOrderConfirmed {
+  orderId: string;
+  sellerId: string;
+  displayName: string;
+  totalPriceCny: number;
+  status: "confirmed";
+  approvedBy: "human";
+}
+
+export interface LaptopFulfillmentUpdated {
+  orderId: string;
+  status: "delivered";
+  deliveredEarlyHours: number;
+  checks: string[];
+  simulated: true;
+}
+
+export interface LaptopAttestationIssued {
+  orderId: string;
+  attestationId: string;
+  scores: {
+    timeliness: number;
+    specification: number;
+    packaging: number;
+  };
+  merchantCreditBefore: number;
+  merchantCreditAfter: number;
+  simulatedEvidence: true;
+}
+
+export interface RestockTimeAdvanced {
+  days: number;
+  beforePercent: number;
+  afterPercent: number;
+  simulated: true;
+}
+
+export interface RestockInventoryForecast {
+  item: string;
+  remainingPercent: number;
+  hoursUntilEmpty: number;
+  confidence: number;
+  simulatedSensor: true;
+}
+
+export interface RestockAuthorizationCheck {
+  authorizationId: string;
+  allowedCategories: string[];
+  singlePurchaseLimitCny: number;
+  monthlyLimitCny: number;
+  monthlyRemainingCny: number;
+  cooldownDays: number;
+  daysSinceLastPurchase: number;
+  hardConstraints: string[];
+  passed: true;
+}
+
+export interface RestockIntent {
+  product: string;
+  budgetCny: number;
+  deadlineHours: number;
+  quantity: number;
+  constraints: string[];
+  reason: string;
+}
+
+export interface RestockProposal {
+  sellerId: string;
+  displayName: string;
+  totalPriceCny: number;
+  deliveryHours: number;
+  reputation: number;
+  reasoning: string;
+  generatedBy: "llm" | "fallback";
+  fallbackReason?: string;
+}
+
+export interface RestockSellerSelected {
+  sellerId: string;
+  displayName: string;
+  score: number;
+  reason: string;
+  proposal: RestockProposal;
+}
+
+export interface RestockBundleNegotiated {
+  sellerId: string;
+  originalPriceCny: number;
+  finalPriceCny: number;
+  concessionCny: number;
+  bundle: string[];
+  benefits: string[];
+  reasoning: string;
+  generatedBy: "llm" | "fallback";
+  fallbackReason?: string;
+}
+
+export interface RestockOrderAuthorized {
+  authorizationId: string;
+  sellerId: string;
+  amountCny: number;
+  checks: string[];
+  autoApproved: true;
+  humanInteractions: 0;
+}
+
+export interface RestockOrderConfirmed {
+  orderId: string;
+  sellerId: string;
+  displayName: string;
+  totalPriceCny: number;
+  status: "confirmed";
+}
+
+export interface RestockInventoryUpdated {
+  orderId: string;
+  items: Array<{ name: string; quantity: number }>;
+  simulated: true;
+}
+
+export interface RestockMemoryUpdated {
+  consumptionCycleDays: number;
+  nextTriggerLeadDays: number;
+  memory: string;
+}
+
+export interface RestockNotificationSent {
+  channel: "inbox";
+  requiresAction: false;
+  summary: string;
 }
 
 // ===========================================================================
@@ -237,6 +476,10 @@ export interface EvidenceSubmission {
   documents: EvidenceDocument[];
   // 对机器询证问题的作答：key 为问题 id，value 为归一化后的字符串答案
   answers: Record<string, string>;
+  // 询证回答由 LLM 实时生成还是规则兜底生成
+  generatedBy: "llm" | "fallback";
+  // 触发兜底的原因（仅在 fallback 时存在；安全脱敏，不含 key/请求头/完整错误对象）
+  fallbackReason?: string;
 }
 
 /**
@@ -346,6 +589,29 @@ export interface EventPayloadMap {
   "seller.score.updated": SellerScoreVector;
   "order.authorized": OrderAuthorized;
   "receipt.issued": LiveReceipt;
+  "laptop.purchase.requested": LaptopPurchaseRequested;
+  "laptop.intent.structured": LaptopIntent;
+  "laptop.proposal.submitted": LaptopProposal;
+  "laptop.seller.rejected": LaptopSellerRejected;
+  "laptop.seller.selected": LaptopSellerSelected;
+  "laptop.counter.offer": LaptopCounterOffer;
+  "laptop.counter.response": LaptopCounterResponse;
+  "laptop.approval.requested": LaptopApprovalRequested;
+  "laptop.order.confirmed": LaptopOrderConfirmed;
+  "laptop.fulfillment.updated": LaptopFulfillmentUpdated;
+  "laptop.attestation.issued": LaptopAttestationIssued;
+  "restock.time.advanced": RestockTimeAdvanced;
+  "restock.inventory.forecasted": RestockInventoryForecast;
+  "restock.authorization.checked": RestockAuthorizationCheck;
+  "restock.intent.created": RestockIntent;
+  "restock.proposal.submitted": RestockProposal;
+  "restock.seller.selected": RestockSellerSelected;
+  "restock.bundle.negotiated": RestockBundleNegotiated;
+  "restock.order.authorized": RestockOrderAuthorized;
+  "restock.order.confirmed": RestockOrderConfirmed;
+  "restock.inventory.updated": RestockInventoryUpdated;
+  "restock.memory.updated": RestockMemoryUpdated;
+  "restock.notification.sent": RestockNotificationSent;
 }
 
 export type AgentEvent<T extends AgentEventType = AgentEventType> =

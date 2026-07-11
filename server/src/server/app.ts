@@ -1,8 +1,6 @@
-import fastifyStatic from "@fastify/static";
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
 import Fastify, { type FastifyInstance } from "fastify";
-import { purchaseRequestSchema } from "../protocol/schemas.js";
+import { z } from "zod";
+import { laptopPurchaseRequestSchema, purchaseRequestSchema } from "../protocol/schemas.js";
 import type { TransactionService } from "../app/transaction-service.js";
 
 function writeSseEvent(
@@ -16,7 +14,11 @@ function writeSseEvent(
 
 export interface BuildAppOptions {
   logger?: boolean;
-  serveFrontend?: boolean;
+  runtimeInfo?: {
+    model: string;
+    llmConfigured: boolean;
+    evidenceLlmEnabled: boolean;
+  };
 }
 
 export function buildApp(
@@ -27,9 +29,76 @@ export function buildApp(
 
   app.get("/health", async () => ({ status: "ok" }));
 
+  app.get("/api/runtime", async () =>
+    options.runtimeInfo ?? {
+      model: "unknown",
+      llmConfigured: false,
+      evidenceLlmEnabled: false,
+    },
+  );
+
   app.get("/api/transactions", async () => ({
     transactions: service.list(),
   }));
+
+  app.get("/api/active-services", async () => ({
+    services: service.listActiveServices(),
+  }));
+
+  app.get("/api/inbox", async () => ({ messages: service.listInboxMessages() }));
+
+  app.get("/api/inbox/events", async (request, reply) => {
+    reply.hijack();
+    reply.raw.writeHead(200, {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+    reply.raw.write("retry: 1000\n\n");
+    const unsubscribe = service.subscribeInbox((update) => {
+      reply.raw.write(`id: ${update.sequence}\n`);
+      reply.raw.write(`event: ${update.type}\n`);
+      reply.raw.write(`data: ${JSON.stringify(update)}\n\n`);
+    });
+    const heartbeat = setInterval(() => reply.raw.write(": heartbeat\n\n"), 15_000);
+    request.raw.on("close", () => { clearInterval(heartbeat); unsubscribe(); });
+  });
+
+  app.post<{ Params: { id: string } }>("/api/inbox/:id/memory", async (request, reply) => {
+    const parsed = z.object({ recommended: z.boolean() }).safeParse(request.body);
+    if (!parsed.success) return reply.status(400).send({ error: "invalid_memory_decision" });
+    const message = service.updateInboxMemory(request.params.id, parsed.data.recommended);
+    if (!message) return reply.status(404).send({ error: "inbox_message_not_found" });
+    return message;
+  });
+
+  app.post<{ Params: { id: string } }>("/api/inbox/:id/archive", async (request, reply) => {
+    const message = service.archiveInboxMessage(request.params.id);
+    if (!message) return reply.status(404).send({ error: "inbox_message_not_found" });
+    return message;
+  });
+
+  app.post<{ Params: { id: string } }>(
+    "/api/active-services/:id/trigger",
+    async (request, reply) => {
+      try {
+        const transactionId = service.triggerActiveService(request.params.id);
+        if (!transactionId) return reply.status(404).send({ error: "active_service_not_found" });
+        return reply.status(202).send({
+          transactionId,
+          status: "queued",
+          transactionUrl: `/api/transactions/${transactionId}`,
+          eventsUrl: `/api/transactions/${transactionId}/events`,
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message === "active_service_not_triggerable") {
+          return reply.status(409).send({ error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
 
   app.post("/api/transactions", async (request, reply) => {
     const parsed = purchaseRequestSchema.safeParse(request.body);
@@ -66,6 +135,51 @@ export function buildApp(
       eventsUrl: `/api/transactions/${transactionId}/events`,
     });
   });
+
+  app.post("/api/demo/laptop-purchase", async (request, reply) => {
+    const parsed = laptopPurchaseRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: "invalid_laptop_purchase_request",
+        details: parsed.error.flatten(),
+      });
+    }
+    const transactionId = service.createLaptopDemo(parsed.data.requestText);
+    return reply.status(202).send({
+      transactionId,
+      status: "queued",
+      transactionUrl: `/api/transactions/${transactionId}`,
+      eventsUrl: `/api/transactions/${transactionId}/events`,
+    });
+  });
+
+  app.post("/api/demo/household-restock", async (_request, reply) => {
+    const transactionId = service.createHouseholdRestockDemo();
+    return reply.status(202).send({
+      transactionId,
+      status: "queued",
+      transactionUrl: `/api/transactions/${transactionId}`,
+      eventsUrl: `/api/transactions/${transactionId}/events`,
+    });
+  });
+
+  app.post<{ Params: { id: string } }>(
+    "/api/transactions/:id/approve",
+    async (request, reply) => {
+      try {
+        const transaction = await service.approveLaptopDemo(request.params.id);
+        if (!transaction) {
+          return reply.status(404).send({ error: "transaction_not_found" });
+        }
+        return transaction;
+      } catch (error) {
+        if (error instanceof Error && error.message === "transaction_not_awaiting_approval") {
+          return reply.status(409).send({ error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
 
   app.get<{ Params: { id: string } }>(
     "/api/transactions/:id",
@@ -116,20 +230,6 @@ export function buildApp(
       });
     },
   );
-
-  if (options.serveFrontend) {
-    const frontendRoot = resolve("web/dist");
-    if (!existsSync(frontendRoot)) {
-      throw new Error("Frontend build not found. Run npm run build:web first.");
-    }
-
-    void app.register(fastifyStatic, {
-      root: frontendRoot,
-      prefix: "/",
-      // 使用动态通配路由，前端重新 build 产生新 hash 文件后无需重启服务注册新路径。
-      wildcard: true,
-    });
-  }
 
   return app;
 }

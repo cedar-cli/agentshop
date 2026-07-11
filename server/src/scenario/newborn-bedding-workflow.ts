@@ -22,6 +22,12 @@
  */
 
 import { createHash } from "node:crypto";
+import {
+  buildFallbackAnswers,
+  FallbackEvidenceAnswerGenerator,
+  validateEvidenceAnswers,
+  type EvidenceAnswerGenerator,
+} from "../agents/evidence-answer-generator.js";
 import type { AgentHandler } from "../agents/types.js";
 import type {
   AgentEvent,
@@ -133,52 +139,10 @@ export function createEvidenceQuestions(): EvidenceQuestion[] {
 // ---------------------------------------------------------------------------
 // 场景事实 → 各卖家对询证问题的作答
 //
-// 三家卖家必须按各自场景事实作答，不能返回相同答案。答案完全由场景数据推导，
-// 保持确定性。
+// 规则兜底答案的推导逻辑已抽到 src/agents/evidence-answer-generator.ts 的
+// buildFallbackAnswers（作为唯一的确定性事实边界），供本工作流与 LLM 实现共用。
+// 本工作流通过可注入的 EvidenceAnswerGenerator 决定「谁用 LLM、谁用规则」。
 // ---------------------------------------------------------------------------
-
-/**
- * 依据某卖家的场景数据，推导其对 5 个询证问题的作答。
- * 答案取自场景事实（交期、证据缺口、bundle 等），不同卖家自然给出不同答案。
- */
-function answerQuestions(
-  seller: SellerScenario,
-  intent: ExecutableIntent,
-): Record<string, string> {
-  // 该卖家是否已提供低敏实验室报告/认证（material 之外的低敏证据）
-  const hasHypoallergenicProof = seller.credentials.some(
-    (credential) =>
-      credential.requirementId === "hypoallergenic-lab-report",
-  );
-  // 72 小时配送是否覆盖：交期不超过意图上限即视为覆盖
-  const coversDeadline = seller.deliveryHours <= intent.deadlineHours;
-  // 是否提供了退货政策证据
-  const hasReturnPolicy = seller.credentials.some(
-    (credential) => credential.requirementId === "return-policy",
-  );
-
-  return {
-    // 低敏证据：有则说明来源凭证，无则如实承认缺失
-    "q-hypoallergenic-proof": hasHypoallergenicProof
-      ? `提供低敏检测凭证（requirement=hypoallergenic-lab-report），承诺交期 ${seller.deliveryHours} 小时`
-      : "暂无可验证的低敏实验室检测凭证，仅有材料自述",
-    // 72h 覆盖：按实际交期作答
-    "q-delivery-72h": coversDeadline ? "true" : "false",
-    // 退货政策：有证据则说明可退，无则承认缺失
-    "q-return-policy": hasReturnPolicy
-      ? "皮肤不适支持无理由退货，附退货政策凭证（requirement=return-policy）"
-      : "暂无可验证的皮肤不适退货政策凭证",
-    // 价格溢价说明：仅 Seller C 有实质性溢价解释，其余按自身定位作答
-    "q-price-premium":
-      seller.sellerId === "seller-c"
-        ? "溢价来自完整低敏认证、材料组成、配送覆盖与退货政策等可验证保障"
-        : `本店初始报价 ${seller.initialPriceUsd} USD，定位与保障范围与 Seller C 不同`,
-    // bundle 优惠：仅提供 bundle 的卖家回 true 并给出最终价
-    "q-bundle-offer": seller.bundle
-      ? `true（bundle 后最终价 ${seller.finalPriceUsd} USD）`
-      : "false",
-  };
-}
 
 /**
  * 把场景层的 DemoVerifiableCredential 无损映射为协议层 EvidenceDocument。
@@ -337,6 +301,8 @@ class NewbornBeddingSellerAgent implements AgentHandler {
     private readonly seller: SellerScenario,
     private readonly intent: ExecutableIntent,
     private readonly state: WorkflowStateStore,
+    // 本卖家使用的询证回答生成器：Seller C 注入 LLM 实现，A/B 注入规则兜底实现
+    private readonly answerGenerator: EvidenceAnswerGenerator,
   ) {
     this.id = `seller-agent-${seller.sellerId}`;
   }
@@ -361,6 +327,11 @@ class NewbornBeddingSellerAgent implements AgentHandler {
       credentialToDocument(credential),
     );
 
+    // 生成对询证问题的作答：规则兜底答案既是回退值，也是不可超越的事实边界
+    const { answers, generatedBy, fallbackReason } = await this.buildAnswers(
+      event.payload.questions,
+    );
+
     return [
       {
         transactionId: event.transactionId,
@@ -371,10 +342,64 @@ class NewbornBeddingSellerAgent implements AgentHandler {
           sellerId: this.seller.sellerId,
           intentId: this.intent.intentId,
           documents,
-          answers: answerQuestions(this.seller, this.intent),
+          answers,
+          generatedBy,
+          fallbackReason,
         },
       },
     ];
+  }
+
+  /**
+   * 生成本卖家对全部询证问题的作答。
+   *
+   * 先由 buildFallbackAnswers 依场景事实推导确定性答案（事实边界），再交给注入的
+   * 生成器决定「LLM 还是规则」。任何异常都在此就地兜底为规则答案并标记 fallback，
+   * 保证证据提交事件必定产生、交易 18 事件链绝不因回答生成失败而中断。
+   *
+   * @param questions 本次证据请求携带的询证问题清单
+   * @returns 合法且完整的作答 + 生成来源标记（+ 兜底原因）
+   */
+  private async buildAnswers(questions: readonly EvidenceQuestion[]): Promise<{
+    answers: Record<string, string>;
+    generatedBy: "llm" | "fallback";
+    fallbackReason?: string;
+  }> {
+    const questionList = questions.map((question) => ({ ...question }));
+    const fallbackAnswers = buildFallbackAnswers(this.seller, this.intent);
+
+    try {
+      const result = await this.answerGenerator.generate({
+        seller: this.seller,
+        intent: this.intent,
+        questions: questionList,
+        fallbackAnswers,
+      });
+
+      if (result.generatedBy === "llm") {
+        // 再校验一次 LLM 结果：缺字段/空答案/多余字段都会抛错并降级到规则兜底
+        const answers = validateEvidenceAnswers(
+          result.answers,
+          questionList,
+          fallbackAnswers,
+        );
+        return { answers, generatedBy: "llm" };
+      }
+
+      // 生成器已自行判定为兜底时只采用权威规则答案，不信任外部返回的自由文本。
+      return {
+        answers: fallbackAnswers,
+        generatedBy: "fallback",
+        fallbackReason: result.fallbackReason,
+      };
+    } catch (error) {
+      // 生成器抛错或返回非法结果：安全降级为规则兜底，绝不让交易失败
+      return {
+        answers: fallbackAnswers,
+        generatedBy: "fallback",
+        fallbackReason: "answer generator failed",
+      };
+    }
   }
 }
 
@@ -685,6 +710,10 @@ export interface NewbornBeddingWorkflowOptions {
   now?: () => Date;
   // 可注入场景，主要用于验证不同授权策略；默认使用标准新生儿床品场景
   scenario?: NewbornBeddingScenario;
+  // 可注入的 Seller C 询证回答生成器：默认规则兜底；server 按 DEMO_LLM_ENABLED 传入 LLM 实现。
+  // 仅 Seller C 使用它，Seller A/B 恒用规则兜底，避免一次 Demo 发起三个模型请求。
+  // 工作流本身**不读环境变量**，是否启用 LLM 完全由调用方（server.ts）通过此项决定。
+  sellerCAnswerGenerator?: EvidenceAnswerGenerator;
 }
 
 /** registerNewbornBeddingWorkflow 的返回句柄。 */
@@ -728,13 +757,25 @@ export function registerNewbornBeddingWorkflow(
   const now = options.now ?? (() => new Date());
   const state = new WorkflowStateStore();
 
+  // 规则兜底生成器：A/B 恒用它，Seller C 在未注入 LLM 实现时也回退到它
+  const fallbackGenerator = new FallbackEvidenceAnswerGenerator();
+  // 仅 Seller C 可用 LLM；未注入时同样走规则兜底，保证行为完全确定
+  const sellerCGenerator = options.sellerCAnswerGenerator ?? fallbackGenerator;
+
   const matcher = new MarketplaceMatcherAgent(sellers, state);
   const buyer = new BuyerEvidenceAgent(intent, sellers, state);
   const evaluator = new EvidenceEvaluatorAgent(intent, sellers, state, now);
   const autoPurchase = new AutoPurchaseAgent(intent, sellers, state, now);
   const receiptIssuer = new ReceiptIssuerAgent(sellers, state, now);
   const sellerAgents = sellers.map(
-    (seller) => new NewbornBeddingSellerAgent(seller, intent, state),
+    (seller) =>
+      new NewbornBeddingSellerAgent(
+        seller,
+        intent,
+        state,
+        // 只有 Seller C 走注入的生成器（可能是 LLM）；A/B 一律规则兜底
+        seller.sellerId === "seller-c" ? sellerCGenerator : fallbackGenerator,
+      ),
   );
 
   // intent.published → 匹配

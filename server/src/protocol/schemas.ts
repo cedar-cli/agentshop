@@ -67,6 +67,176 @@ const confirmedOrderSchema = z.object({
   status: z.literal("confirmed"),
 });
 
+export const laptopPurchaseRequestSchema = z.object({
+  requestText: z.string().min(8).max(500),
+});
+
+const laptopPrioritiesSchema = z.object({
+  timeliness: z.number().min(0).max(100),
+  spec: z.number().min(0).max(100),
+  price: z.number().min(0).max(100),
+  afterSales: z.number().min(0).max(100),
+});
+
+export const laptopIntentSchema = z.object({
+  requestText: z.string().min(1).max(500),
+  product: z.string().min(1).max(120),
+  budgetCny: z.number().positive(),
+  deadlineHours: z.number().positive(),
+  maxWeightKg: z.number().positive(),
+  minBatteryHours: z.number().positive(),
+  requiresNationalWarranty: z.boolean(),
+  priorities: laptopPrioritiesSchema,
+  generatedBy: z.enum(["llm", "fallback"]),
+  fallbackReason: z.string().max(240).optional(),
+});
+
+const laptopMetricsSchema = z.object({
+  timeliness: z.number().min(0).max(100),
+  spec: z.number().min(0).max(100),
+  afterSales: z.number().min(0).max(100),
+  price: z.number().min(0).max(100),
+});
+
+export const laptopProposalSchema = z.object({
+  sellerId: z.string().min(1),
+  displayName: z.string().min(1),
+  quotedPriceCny: z.number().positive(),
+  listPriceCny: z.number().positive(),
+  deliveryHours: z.number().positive(),
+  weightKg: z.number().positive(),
+  batteryHours: z.number().positive(),
+  warrantyYears: z.number().int().positive(),
+  nationalWarranty: z.boolean(),
+  reputation: z.number().min(0).max(100),
+  metrics: laptopMetricsSchema,
+  reasoning: z.string().min(1).max(240),
+  generatedBy: z.enum(["llm", "fallback"]),
+  fallbackReason: z.string().max(240).optional(),
+});
+
+const laptopSellerRejectedSchema = z.object({
+  sellerId: z.string().min(1),
+  displayName: z.string().min(1),
+  reasons: z.array(z.string().min(1)).min(1),
+});
+
+const laptopSellerSelectedSchema = z.object({
+  sellerId: z.string().min(1),
+  displayName: z.string().min(1),
+  score: z.number().min(0).max(100),
+  reason: z.string().min(1).max(240),
+  proposal: laptopProposalSchema,
+});
+
+const laptopCounterOfferSchema = z.object({
+  sellerId: z.string().min(1),
+  originalPriceCny: z.number().positive(),
+  targetPriceCny: z.number().positive(),
+  reasoning: z.string().min(1).max(240),
+});
+
+const laptopCounterResponseSchema = z.object({
+  sellerId: z.string().min(1),
+  finalPriceCny: z.number().positive(),
+  concessionCny: z.number().min(0),
+  reasoning: z.string().min(1).max(240),
+  generatedBy: z.enum(["llm", "fallback"]),
+  fallbackReason: z.string().max(240).optional(),
+});
+
+const laptopApprovalRequestedSchema = z.object({
+  sellerId: z.string().min(1),
+  displayName: z.string().min(1),
+  finalPriceCny: z.number().positive(),
+  expiresInMinutes: z.number().int().positive(),
+  reason: z.string().min(1).max(240),
+});
+
+const laptopOrderConfirmedSchema = z.object({
+  orderId: z.string().min(1),
+  sellerId: z.string().min(1),
+  displayName: z.string().min(1),
+  totalPriceCny: z.number().positive(),
+  status: z.literal("confirmed"),
+  approvedBy: z.literal("human"),
+});
+
+const laptopFulfillmentUpdatedSchema = z.object({
+  orderId: z.string().min(1),
+  status: z.literal("delivered"),
+  deliveredEarlyHours: z.number().min(0),
+  checks: z.array(z.string().min(1)).min(1),
+  simulated: z.literal(true),
+});
+
+const laptopAttestationIssuedSchema = z.object({
+  orderId: z.string().min(1),
+  attestationId: z.string().min(1),
+  scores: z.object({
+    timeliness: z.number().min(0).max(100),
+    specification: z.number().min(0).max(100),
+    packaging: z.number().min(0).max(100),
+  }),
+  merchantCreditBefore: z.number().min(0).max(100),
+  merchantCreditAfter: z.number().min(0).max(100),
+  simulatedEvidence: z.literal(true),
+});
+
+const restockTimeAdvancedSchema = z.object({
+  days: z.number().int().positive(), beforePercent: z.number().min(0).max(100),
+  afterPercent: z.number().min(0).max(100), simulated: z.literal(true),
+});
+const restockInventoryForecastSchema = z.object({
+  item: z.string().min(1), remainingPercent: z.number().min(0).max(100),
+  hoursUntilEmpty: z.number().positive(), confidence: z.number().min(0).max(100),
+  simulatedSensor: z.literal(true),
+});
+const restockAuthorizationCheckSchema = z.object({
+  authorizationId: z.string().min(1), allowedCategories: z.array(z.string().min(1)).min(1),
+  singlePurchaseLimitCny: z.number().positive(), monthlyLimitCny: z.number().positive(),
+  monthlyRemainingCny: z.number().min(0), cooldownDays: z.number().int().min(0),
+  daysSinceLastPurchase: z.number().int().min(0), hardConstraints: z.array(z.string().min(1)),
+  passed: z.literal(true),
+});
+const restockIntentSchema = z.object({
+  product: z.string().min(1), budgetCny: z.number().positive(), deadlineHours: z.number().positive(),
+  quantity: z.number().int().positive(), constraints: z.array(z.string().min(1)), reason: z.string().min(1),
+});
+const restockProposalSchema = z.object({
+  sellerId: z.string().min(1), displayName: z.string().min(1), totalPriceCny: z.number().positive(),
+  deliveryHours: z.number().positive(), reputation: z.number().min(0).max(100), reasoning: z.string().min(1).max(240),
+  generatedBy: z.enum(["llm", "fallback"]), fallbackReason: z.string().max(240).optional(),
+});
+const restockSellerSelectedSchema = z.object({
+  sellerId: z.string().min(1), displayName: z.string().min(1), score: z.number().min(0).max(100),
+  reason: z.string().min(1), proposal: restockProposalSchema,
+});
+const restockBundleNegotiatedSchema = z.object({
+  sellerId: z.string().min(1), originalPriceCny: z.number().positive(), finalPriceCny: z.number().positive(),
+  concessionCny: z.number().min(0), bundle: z.array(z.string().min(1)).min(1), benefits: z.array(z.string().min(1)),
+  reasoning: z.string().min(1).max(240), generatedBy: z.enum(["llm", "fallback"]),
+  fallbackReason: z.string().max(240).optional(),
+});
+const restockOrderAuthorizedSchema = z.object({
+  authorizationId: z.string().min(1), sellerId: z.string().min(1), amountCny: z.number().positive(),
+  checks: z.array(z.string().min(1)).min(1), autoApproved: z.literal(true), humanInteractions: z.literal(0),
+});
+const restockOrderConfirmedSchema = z.object({
+  orderId: z.string().min(1), sellerId: z.string().min(1), displayName: z.string().min(1),
+  totalPriceCny: z.number().positive(), status: z.literal("confirmed"),
+});
+const restockInventoryUpdatedSchema = z.object({
+  orderId: z.string().min(1), items: z.array(z.object({ name: z.string().min(1), quantity: z.number().int().positive() })).min(1),
+  simulated: z.literal(true),
+});
+const restockMemoryUpdatedSchema = z.object({
+  consumptionCycleDays: z.number().positive(), nextTriggerLeadDays: z.number().positive(), memory: z.string().min(1),
+});
+const restockNotificationSentSchema = z.object({
+  channel: z.literal("inbox"), requiresAction: z.literal(false), summary: z.string().min(1),
+});
+
 // ===========================================================================
 // 新增负载 Schema：可执行意图、机器询证、动态评分、自动购买协议
 //
@@ -174,12 +344,15 @@ export const evidenceQuestionSchema = z.object({
   expectedAnswer: z.enum(["boolean", "number", "text", "enum"]),
 });
 
-// 证据提交：卖家/意图 id 非空，文档为数组，作答为「问题 id → 字符串答案」映射
+// 证据提交：卖家/意图 id 非空，文档为数组，作答为「问题 id → 字符串答案」映射。
+// generatedBy 限定为固定枚举，据此拒绝任何非法的生成来源标记；fallbackReason 简短可选。
 export const evidenceSubmissionSchema = z.object({
   sellerId: z.string().min(1),
   intentId: z.string().min(1),
   documents: z.array(evidenceDocumentSchema),
   answers: z.record(z.string().min(1), z.string()),
+  generatedBy: z.enum(["llm", "fallback"]),
+  fallbackReason: z.string().max(240).optional(),
 });
 
 // 卖家评分向量：风险分限定在 0-1，其余分项限定在 0-100
@@ -369,4 +542,82 @@ export const agentEventSchema = z.discriminatedUnion("type", [
     causationId: z.string().optional(),
     payload: liveReceiptSchema,
   }),
+  z.object({
+    id: z.string().min(1), transactionId: z.string().min(1),
+    type: z.literal("laptop.purchase.requested"), source: z.string().min(1),
+    target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }),
+    causationId: z.string().optional(), payload: laptopPurchaseRequestSchema,
+  }),
+  z.object({
+    id: z.string().min(1), transactionId: z.string().min(1),
+    type: z.literal("laptop.intent.structured"), source: z.string().min(1),
+    target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }),
+    causationId: z.string().optional(), payload: laptopIntentSchema,
+  }),
+  z.object({
+    id: z.string().min(1), transactionId: z.string().min(1),
+    type: z.literal("laptop.proposal.submitted"), source: z.string().min(1),
+    target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }),
+    causationId: z.string().optional(), payload: laptopProposalSchema,
+  }),
+  z.object({
+    id: z.string().min(1), transactionId: z.string().min(1),
+    type: z.literal("laptop.seller.rejected"), source: z.string().min(1),
+    target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }),
+    causationId: z.string().optional(), payload: laptopSellerRejectedSchema,
+  }),
+  z.object({
+    id: z.string().min(1), transactionId: z.string().min(1),
+    type: z.literal("laptop.seller.selected"), source: z.string().min(1),
+    target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }),
+    causationId: z.string().optional(), payload: laptopSellerSelectedSchema,
+  }),
+  z.object({
+    id: z.string().min(1), transactionId: z.string().min(1),
+    type: z.literal("laptop.counter.offer"), source: z.string().min(1),
+    target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }),
+    causationId: z.string().optional(), payload: laptopCounterOfferSchema,
+  }),
+  z.object({
+    id: z.string().min(1), transactionId: z.string().min(1),
+    type: z.literal("laptop.counter.response"), source: z.string().min(1),
+    target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }),
+    causationId: z.string().optional(), payload: laptopCounterResponseSchema,
+  }),
+  z.object({
+    id: z.string().min(1), transactionId: z.string().min(1),
+    type: z.literal("laptop.approval.requested"), source: z.string().min(1),
+    target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }),
+    causationId: z.string().optional(), payload: laptopApprovalRequestedSchema,
+  }),
+  z.object({
+    id: z.string().min(1), transactionId: z.string().min(1),
+    type: z.literal("laptop.order.confirmed"), source: z.string().min(1),
+    target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }),
+    causationId: z.string().optional(), payload: laptopOrderConfirmedSchema,
+  }),
+  z.object({
+    id: z.string().min(1), transactionId: z.string().min(1),
+    type: z.literal("laptop.fulfillment.updated"), source: z.string().min(1),
+    target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }),
+    causationId: z.string().optional(), payload: laptopFulfillmentUpdatedSchema,
+  }),
+  z.object({
+    id: z.string().min(1), transactionId: z.string().min(1),
+    type: z.literal("laptop.attestation.issued"), source: z.string().min(1),
+    target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }),
+    causationId: z.string().optional(), payload: laptopAttestationIssuedSchema,
+  }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("restock.time.advanced"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: restockTimeAdvancedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("restock.inventory.forecasted"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: restockInventoryForecastSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("restock.authorization.checked"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: restockAuthorizationCheckSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("restock.intent.created"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: restockIntentSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("restock.proposal.submitted"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: restockProposalSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("restock.seller.selected"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: restockSellerSelectedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("restock.bundle.negotiated"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: restockBundleNegotiatedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("restock.order.authorized"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: restockOrderAuthorizedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("restock.order.confirmed"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: restockOrderConfirmedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("restock.inventory.updated"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: restockInventoryUpdatedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("restock.memory.updated"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: restockMemoryUpdatedSchema }),
+  z.object({ id: z.string().min(1), transactionId: z.string().min(1), type: z.literal("restock.notification.sent"), source: z.string().min(1), target: z.string().optional(), timestamp: z.iso.datetime({ offset: true }), causationId: z.string().optional(), payload: restockNotificationSentSchema }),
 ]);

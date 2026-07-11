@@ -1,8 +1,12 @@
 import "dotenv/config";
 import { mkdirSync } from "node:fs";
+import type { EvidenceAnswerGenerator } from "./agents/evidence-answer-generator.js";
 import { TransactionService } from "./app/transaction-service.js";
 import { OpenAIProposalGenerator } from "./llm/openai-proposal-generator.js";
 import { OpenAICounterNegotiator } from "./llm/openai-counter-negotiator.js";
+import { OpenAIEvidenceAnswerGenerator } from "./llm/openai-evidence-answer-generator.js";
+import { OpenAILaptopAgent } from "./llm/openai-laptop-agent.js";
+import { getModel } from "./llm/client.js";
 import { buildApp } from "./server/app.js";
 
 mkdirSync("data", { recursive: true });
@@ -19,6 +23,25 @@ function resolveDemoStepDelayMs(raw: string | undefined): number {
   return parsed;
 }
 
+/**
+ * 依据 DEMO_LLM_ENABLED 决定是否为 Seller C 注入 LLM 询证回答生成器。
+ * 仅当显式设为 "true" 时启用 LLM；其余任何值（含未配置）都返回 undefined，
+ * 使三家卖家全部走确定性规则兜底，保证现场 Demo 默认最稳。
+ *
+ * @param raw DEMO_LLM_ENABLED 环境变量原始值
+ * @returns 启用时返回 OpenAI 生成器实例，否则 undefined
+ */
+function resolveSellerCAnswerGenerator(
+  raw: string | undefined,
+): EvidenceAnswerGenerator | undefined {
+  if (raw?.trim().toLowerCase() !== "true") return undefined;
+  return new OpenAIEvidenceAnswerGenerator();
+}
+
+const evidenceAnswerGenerator = resolveSellerCAnswerGenerator(
+  process.env.DEMO_LLM_ENABLED,
+);
+
 const service = new TransactionService({
   databaseFilename: "data/agentshop.db",
   proposalGenerator: new OpenAIProposalGenerator(),
@@ -26,8 +49,19 @@ const service = new TransactionService({
   newbornBeddingStepDelayMs: resolveDemoStepDelayMs(
     process.env.DEMO_STEP_DELAY_MS,
   ),
+  // 只有 DEMO_LLM_ENABLED=true 时 Seller C 才实时调用 gpt-5.6-luna；否则规则兜底
+  sellerCAnswerGenerator: evidenceAnswerGenerator,
+  laptopLlmAgent: new OpenAILaptopAgent(),
 });
-const app = buildApp(service, { serveFrontend: true });
+const app = buildApp(service, {
+  runtimeInfo: {
+    model: getModel(),
+    llmConfigured: Boolean(
+      process.env.OPENAI_API_KEY?.trim() && process.env.OPENAI_BASE_URL?.trim(),
+    ),
+    evidenceLlmEnabled: evidenceAnswerGenerator !== undefined,
+  },
+});
 
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? "127.0.0.1";

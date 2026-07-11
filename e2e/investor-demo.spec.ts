@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test'
 
+test('轻薄本案例在购买历史原位提供实时执行入口', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: '出差轻薄本采购' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '运行真实 LLM' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /实时采购/ })).toHaveCount(0)
+})
+
 test('消费者端覆盖会话、主动服务与 Inbox', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: '我的消费 Agent' })).toBeVisible()
@@ -7,9 +14,21 @@ test('消费者端覆盖会话、主动服务与 Inbox', async ({ page }) => {
   await page.getByRole('button', { name: /主动服务/ }).click()
   await expect(page.getByText('日用品补库')).toBeVisible()
   await expect(page.getByText('盯二手商品')).toBeVisible()
+  await expect(page.getByText('LIVE BACKEND')).toBeVisible()
+  await expect(page.getByText('FIXTURE')).toHaveCount(3)
   await page.getByRole('button', { name: /Inbox/ }).click()
+  await expect(page.getByText('LIVE API')).toBeVisible()
   await expect(page.getByText('Agent 评价')).toBeVisible()
   await expect(page.getByText('建议存入记忆')).toBeVisible()
+})
+
+test('家庭补库明确表达无人类采购指令', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /家庭日用品补库/ }).click()
+  await expect(page.getByText('AUTONOMOUS MODE')).toBeVisible()
+  await expect(page.getByRole('button', { name: '推进到库存触发点' })).toBeVisible()
+  await expect(page.getByRole('textbox', { name: '向消费 Agent 描述需求' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: '确认下单' })).toHaveCount(0)
 })
 
 test('假设时间机器：拖偏好后冠军翻盘', async ({ page, viewport }) => {

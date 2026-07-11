@@ -59,6 +59,7 @@ export interface DemoEvent {
   body: string
   evidence?: string
   impact?: string
+  origin?: 'llm' | 'rule' | 'simulation'
 }
 
 export interface DemoPurchase {

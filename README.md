@@ -38,6 +38,7 @@ src/
 ├── test/          Vitest 运行环境
 └── styles/        设计令牌 / 排版 / 全局样式
 e2e/               Playwright 桌面与移动端关键路径
+server/            Fastify + OpenAI + SQLite 纯 API/Agent 后端子项目
 ```
 
 ## 已实现的关键机制
@@ -62,6 +63,8 @@ e2e/               Playwright 桌面与移动端关键路径
 
 ## 运行
 
+### 交互原型（根目录）
+
 ```bash
 npm install
 npm run dev        # 开发服务器 http://localhost:5173
@@ -71,6 +74,20 @@ npm test           # 领域数据与组件行为测试
 npm run test:coverage # 覆盖率检查
 npm run test:e2e   # Playwright 桌面与移动端演示路径
 ```
+
+### 实时 Agent API/LLM 后端
+
+```bash
+cd server
+npm install
+npm run dev        # Fastify API http://localhost:3000
+npm run build      # 后端类型检查
+npm test           # 后端、协议与工作流测试
+```
+
+浏览器只访问 `http://localhost:5173`。根 Vite 服务会把 `/api` 与 `/health` 代理到 3000；
+3000 不再提供第二套前端。两套项目依赖和构建产物彼此独立，后端环境变量放在
+`server/.env`，不要提交真实 API Key。
 
 ## 技术栈
 

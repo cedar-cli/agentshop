@@ -6,6 +6,8 @@ import { DecisionTheater } from './DecisionTheater'
 import { ActiveServiceBoard } from './ActiveServiceBoard'
 import { ConsumerInbox } from './ConsumerInbox'
 import './consumer.css'
+import { useHouseholdRestock } from '../../hooks/useHouseholdRestock'
+import { useInbox } from '../../hooks/useInbox'
 
 type ConsumerView = 'agent' | 'theater' | 'services' | 'inbox'
 
@@ -18,12 +20,14 @@ const VIEWS: Array<{
   { key: 'agent', label: '消费 Agent', icon: MessageSquareText },
   { key: 'theater', label: '决策剧场', icon: Swords },
   { key: 'services', label: '主动服务', icon: Radar, badge: '4' },
-  { key: 'inbox', label: 'Inbox', icon: Inbox, badge: '3' },
+  { key: 'inbox', label: 'Inbox', icon: Inbox },
 ]
 
 export function ConsumerModule() {
   const [view, setView] = useState<ConsumerView>('agent')
   const [selectedId, setSelectedId] = useState(DEMO_PURCHASES[0].id)
+  const restock = useHouseholdRestock()
+  const inbox = useInbox()
 
   const openPurchase = (id: string) => {
     setSelectedId(id)
@@ -58,7 +62,7 @@ export function ConsumerModule() {
             >
               <Icon size={16} />
               <span>{item.label}</span>
-              {item.badge && <b className="consumer-tab-badge num">{item.badge}</b>}
+              {(item.badge || item.key === 'inbox') && <b className="consumer-tab-badge num">{item.key === 'inbox' ? inbox.messages.length : item.badge}</b>}
             </button>
           )
         })}
@@ -66,11 +70,11 @@ export function ConsumerModule() {
 
       <div className="consumer-stage panel">
         {view === 'agent' && (
-          <ConsumerConversation selectedId={selectedId} onSelect={setSelectedId} />
+          <ConsumerConversation selectedId={selectedId} onSelect={setSelectedId} restock={restock} />
         )}
         {view === 'theater' && <DecisionTheater />}
-        {view === 'services' && <ActiveServiceBoard onOpenPurchase={openPurchase} />}
-        {view === 'inbox' && <ConsumerInbox onOpenPurchase={openPurchase} />}
+        {view === 'services' && <ActiveServiceBoard onOpenPurchase={openPurchase} restock={restock} />}
+        {view === 'inbox' && <ConsumerInbox onOpenPurchase={openPurchase} inbox={inbox} />}
       </div>
     </div>
   )
