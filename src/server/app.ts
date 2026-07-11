@@ -48,6 +48,25 @@ export function buildApp(
     });
   });
 
+  // 只读返回一份全新的新生儿床品静态场景（意图 + 卖家），供前端展示 Demo 剧情。
+  // 每次返回都是深构造的新对象，不暴露内部可变引用。
+  app.get("/api/demo/newborn-bedding", async () => {
+    const scenario = service.getNewbornBeddingScenario();
+    return { intent: scenario.intent, sellers: scenario.sellers };
+  });
+
+  // 启动一次新的新生儿床品 A2A 演示交易。无需请求体，每次生成独立 transactionId，
+  // 可重复运行。返回 202，附带交易查询与 SSE 事件流地址。
+  app.post("/api/demo/newborn-bedding", async (_request, reply) => {
+    const transactionId = service.createNewbornBeddingDemo();
+    return reply.status(202).send({
+      transactionId,
+      status: "queued",
+      transactionUrl: `/api/transactions/${transactionId}`,
+      eventsUrl: `/api/transactions/${transactionId}/events`,
+    });
+  });
+
   app.get<{ Params: { id: string } }>(
     "/api/transactions/:id",
     async (request, reply) => {

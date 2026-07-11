@@ -47,6 +47,7 @@ describe("transaction API", () => {
       });
       snapshot = response.json<{
         status: string;
+        kind: string;
         chainValid: boolean;
         events: Array<{ type: string }>;
       }>();
@@ -55,6 +56,8 @@ describe("transaction API", () => {
     }
 
     expect(snapshot?.status).toBe("completed");
+    // 普通采购交易的 kind 必须为 purchase
+    expect(snapshot?.kind).toBe("purchase");
     expect(snapshot?.chainValid).toBe(true);
     expect(snapshot?.events.map((event) => event.type)).toEqual([
       "purchase.requested",
@@ -73,8 +76,13 @@ describe("transaction API", () => {
     });
     expect(listResponse.statusCode).toBe(200);
     expect(
-      listResponse.json<{ transactions: Array<{ id: string }> }>().transactions,
-    ).toEqual(expect.arrayContaining([expect.objectContaining({ id: transactionId })]));
+      listResponse.json<{ transactions: Array<{ id: string; kind: string }> }>()
+        .transactions,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: transactionId, kind: "purchase" }),
+      ]),
+    );
 
     await app.close();
   });
