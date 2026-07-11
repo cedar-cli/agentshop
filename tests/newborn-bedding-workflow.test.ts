@@ -3,7 +3,7 @@ import type { AgentEvent } from "../src/protocol/events.js";
 import { EventRouter } from "../src/router/event-router.js";
 import type { StoredEvent } from "../src/store/event-store.js";
 import { EventStore } from "../src/store/event-store.js";
-import { createSellerC } from "../src/scenario/newborn-bedding.js";
+import { createNewbornBeddingScenario } from "../src/scenario/newborn-bedding.js";
 import {
   computeEvidenceSnapshotHash,
   registerNewbornBeddingWorkflow,
@@ -61,6 +61,21 @@ describe("newborn bedding A2A workflow · event chain", () => {
     const events = await runOnce("tx-chain");
     expect(events).toHaveLength(18);
     expect(events.map((event) => event.type)).toEqual(EXPECTED_TYPES);
+  });
+
+  it("applies the configured delay between all 18 events", async () => {
+    const { store, router } = setup();
+    const delays: number[] = [];
+    await runNewbornBeddingWorkflow(router, "tx-paced", {
+      stepDelayMs: 25,
+      sleep: async (ms) => {
+        delays.push(ms);
+      },
+    });
+
+    expect(store.list("tx-paced")).toHaveLength(18);
+    expect(delays).toEqual(Array.from({ length: 17 }, () => 25));
+    store.close();
   });
 
   it("matches, requests, submits and scores all three sellers", async () => {
@@ -233,8 +248,18 @@ describe("newborn bedding A2A workflow · auto purchase outcome", () => {
       receipt.payload.issuedAt,
     );
 
-    // 快照哈希可用 Seller C 的证据独立复算并一致
-    const expectedHash = computeEvidenceSnapshotHash(createSellerC());
+    // 快照哈希必须从本次事件链中 Seller C 的实际提交独立复算
+    const sellerCSubmission = events.find(
+      (event) =>
+        event.type === "evidence.submitted" &&
+        event.payload.sellerId === "seller-c",
+    );
+    if (sellerCSubmission?.type !== "evidence.submitted") {
+      throw new Error("missing Seller C evidence submission");
+    }
+    const expectedHash = computeEvidenceSnapshotHash(
+      sellerCSubmission.payload.documents,
+    );
     expect(receipt.payload.evidenceSnapshotHash).toBe(expectedHash);
     // 且确实是 64 位十六进制 SHA-256，而非占位串
     expect(receipt.payload.evidenceSnapshotHash).toMatch(/^[0-9a-f]{64}$/);
@@ -279,6 +304,103 @@ describe("newborn bedding A2A workflow · integrity", () => {
       expect(cause).toBeDefined();
       expect(cause?.target).toBe(submission.payload.sellerId);
     }
+
+    const matchedBySeller = new Map(
+      events
+        .filter((event) => event.type === "seller.matched")
+        .map((event) => [event.payload.sellerId, event.id]),
+    );
+    const submissionBySeller = new Map(
+      events
+        .filter((event) => event.type === "evidence.submitted")
+        .map((event) => [event.payload.sellerId, event.id]),
+    );
+    for (const event of events) {
+      if (
+        (event.type === "evidence.requested" ||
+          event.type === "seller.score.updated") &&
+        event.source === WORKFLOW_ACTORS.buyer
+      ) {
+        expect(event.causationId).toBe(matchedBySeller.get(event.payload.sellerId));
+      }
+      if (
+        event.type === "seller.score.updated" &&
+        event.source === WORKFLOW_ACTORS.evaluator
+      ) {
+        expect(event.causationId).toBe(
+          submissionBySeller.get(event.payload.sellerId),
+        );
+      }
+    }
+  });
+});
+
+describe("newborn bedding A2A workflow · rejection paths", () => {
+  it("does not derive scores or authorization from unsolicited empty submissions", async () => {
+    const { store, router } = setup();
+    for (const sellerId of ["seller-a", "seller-b", "seller-c"]) {
+      await router.publish({
+        transactionId: "tx-forged",
+        type: "evidence.submitted",
+        source: sellerId,
+        payload: {
+          sellerId,
+          intentId: "intent-newborn-bedding",
+          documents: [],
+          answers: {},
+        },
+      });
+    }
+
+    expect(store.list("tx-forged").map((event) => event.type)).toEqual([
+      "evidence.submitted",
+      "evidence.submitted",
+      "evidence.submitted",
+    ]);
+    store.close();
+  });
+
+  it("rejects Seller C when its actual submission lacks mandatory evidence", async () => {
+    const scenario = createNewbornBeddingScenario();
+    const sellerC = scenario.sellers.find(
+      (seller) => seller.sellerId === "seller-c",
+    );
+    if (!sellerC) throw new Error("missing Seller C scenario");
+    sellerC.credentials = [];
+
+    const store = new EventStore(":memory:");
+    const router = new EventRouter(store);
+    registerNewbornBeddingWorkflow(router, { scenario, now: FIXED_NOW });
+    await runNewbornBeddingWorkflow(router, "tx-missing-evidence");
+
+    const events = store.list("tx-missing-evidence");
+    const sellerCScore = events.find(
+      (event) =>
+        event.type === "seller.score.updated" &&
+        event.source === WORKFLOW_ACTORS.evaluator &&
+        event.payload.sellerId === "seller-c",
+    );
+    expect(sellerCScore?.type).toBe("seller.score.updated");
+    if (sellerCScore?.type === "seller.score.updated") {
+      expect(sellerCScore.payload.stage).toBe("rejected");
+    }
+    expect(events.some((event) => event.type === "order.authorized")).toBe(false);
+    expect(events.some((event) => event.type === "receipt.issued")).toBe(false);
+    store.close();
+  });
+
+  it("does not authorize when automatic purchasing is disabled", async () => {
+    const scenario = createNewbornBeddingScenario();
+    scenario.intent.autoPurchasePolicy.enabled = false;
+    const store = new EventStore(":memory:");
+    const router = new EventRouter(store);
+    registerNewbornBeddingWorkflow(router, { scenario, now: FIXED_NOW });
+    await runNewbornBeddingWorkflow(router, "tx-manual-only");
+
+    const events = store.list("tx-manual-only");
+    expect(events.some((event) => event.type === "order.authorized")).toBe(false);
+    expect(events.some((event) => event.type === "receipt.issued")).toBe(false);
+    store.close();
   });
 });
 

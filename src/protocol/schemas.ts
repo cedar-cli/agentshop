@@ -115,34 +115,57 @@ export const executableIntentSchema = z
 
 // 结构化凭证：证据文档可选携带的可验证凭证要素。
 // isDemoCredential 强制为字面量 true——协议层据此拒绝任何伪装成真实外部认证的凭证。
-export const evidenceCredentialSchema = z.object({
-  // 凭证类型必须落在与 EvidenceRequirement.kind 相同的枚举内
-  type: z.enum([
-    "certification",
-    "lab-report",
-    "material-spec",
-    "photo",
-    "attestation",
-  ]),
-  issuer: z.string().min(1),
-  referenceId: z.string().min(1),
-  hash: z.string().min(1),
-  validFrom: z.iso.datetime({ offset: true }),
-  validUntil: z.iso.datetime({ offset: true }),
-  verificationStatus: z.string().min(1),
-  // 恒为 true：明确这是演示可验证凭证，不是真实认证
-  isDemoCredential: z.literal(true),
-  disclaimer: z.string().min(1).max(240),
-});
+export const evidenceCredentialSchema = z
+  .object({
+    // 凭证类型必须落在与 EvidenceRequirement.kind 相同的枚举内
+    type: z.enum([
+      "certification",
+      "lab-report",
+      "material-spec",
+      "photo",
+      "attestation",
+    ]),
+    issuer: z.string().min(1),
+    referenceId: z.string().min(1),
+    hash: z.string().min(1),
+    validFrom: z.iso.datetime({ offset: true }),
+    validUntil: z.iso.datetime({ offset: true }),
+    verificationStatus: z.enum(["demo-verifiable", "unverifiable"]),
+    // 恒为 true：明确这是演示可验证凭证，不是真实认证
+    isDemoCredential: z.literal(true),
+    disclaimer: z.string().min(1).max(240),
+  })
+  .superRefine((credential, context) => {
+    if (Date.parse(credential.validFrom) >= Date.parse(credential.validUntil)) {
+      context.addIssue({
+        code: "custom",
+        path: ["validUntil"],
+        message: "Credential validity must end after it starts",
+      });
+    }
+  });
 
 // 证据文档：回指的要求 id、标题、地址与内容哈希均非空；可选携带结构化凭证
-export const evidenceDocumentSchema = z.object({
-  requirementId: z.string().min(1),
-  title: z.string().min(1).max(240),
-  uri: z.string().min(1),
-  contentHash: z.string().min(1),
-  credential: evidenceCredentialSchema.optional(),
-});
+export const evidenceDocumentSchema = z
+  .object({
+    requirementId: z.string().min(1),
+    title: z.string().min(1).max(240),
+    uri: z.string().min(1),
+    contentHash: z.string().min(1),
+    credential: evidenceCredentialSchema.optional(),
+  })
+  .superRefine((document, context) => {
+    if (
+      document.credential &&
+      document.contentHash !== document.credential.hash
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["contentHash"],
+        message: "Document content hash must match its credential hash",
+      });
+    }
+  });
 
 // 机器询证问题：id 与问题文本非空，期望作答形态为固定枚举
 export const evidenceQuestionSchema = z.object({

@@ -9,11 +9,19 @@ import { agentEventSchema } from "../protocol/schemas.js";
 import type { EventStore, StoredEvent } from "../store/event-store.js";
 
 export type EventObserver = (event: StoredEvent) => void;
+export type EventDelay = (ms: number) => Promise<void>;
+
+interface TransactionPacing {
+  delayMs: number;
+  sleep: EventDelay;
+  eventCount: number;
+}
 
 export class EventRouter {
   private readonly handlers = new Map<AgentEventType, AgentHandler[]>();
   private readonly observers = new Set<EventObserver>();
   private readonly queue: AgentEvent[] = [];
+  private readonly pacing = new Map<string, TransactionPacing>();
   private readonly idleWaiters: Array<{
     resolve: () => void;
     reject: (error: unknown) => void;
@@ -31,6 +39,22 @@ export class EventRouter {
   observe(observer: EventObserver): () => void {
     this.observers.add(observer);
     return () => this.observers.delete(observer);
+  }
+
+  configureTransactionPacing(
+    transactionId: string,
+    delayMs: number,
+    sleep: EventDelay,
+  ): void {
+    this.pacing.set(transactionId, {
+      delayMs: Math.max(0, delayMs),
+      sleep,
+      eventCount: 0,
+    });
+  }
+
+  clearTransactionPacing(transactionId: string): void {
+    this.pacing.delete(transactionId);
   }
 
   async publish<T extends AgentEventType>(event: NewAgentEvent<T>): Promise<void> {
@@ -64,6 +88,8 @@ export class EventRouter {
         const event = this.queue.shift();
         if (!event) continue;
 
+        await this.applyPacing(event.transactionId);
+
         const stored = this.store.append(event);
         for (const observer of this.observers) observer(stored);
 
@@ -88,6 +114,16 @@ export class EventRouter {
     } finally {
       this.processing = false;
     }
+  }
+
+  private async applyPacing(transactionId: string): Promise<void> {
+    const pacing = this.pacing.get(transactionId);
+    if (!pacing) return;
+
+    if (pacing.eventCount > 0 && pacing.delayMs > 0) {
+      await pacing.sleep(pacing.delayMs);
+    }
+    pacing.eventCount += 1;
   }
 
   private resolveIdleWaiters(): void {

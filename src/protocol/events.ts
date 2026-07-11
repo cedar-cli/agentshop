@@ -187,10 +187,10 @@ export interface EvidenceCredential {
   validFrom: string;
   // 有效期截止（ISO-8601，带时区偏移）
   validUntil: string;
-  // 验证状态（如 "demo-verifiable" / "unverifiable"）
-  verificationStatus: string;
+  // 验证状态
+  verificationStatus: "demo-verifiable" | "unverifiable";
   // Demo 标记：明确这是演示可验证凭证，不是真实外部认证
-  isDemoCredential: boolean;
+  isDemoCredential: true;
   // 免责说明，杜绝把 Demo 凭证误当成真实认证
   disclaimer: string;
 }

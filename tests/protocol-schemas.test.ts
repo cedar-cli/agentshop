@@ -205,6 +205,36 @@ describe("evidenceDocumentSchema", () => {
     };
     expect(evidenceDocumentSchema.safeParse(bad).success).toBe(false);
   });
+
+  it("rejects a credential with an unknown verification status", () => {
+    const bad = {
+      ...validCredentialDocument,
+      credential: {
+        ...validCredentialDocument.credential,
+        verificationStatus: "trusted-by-default",
+      },
+    };
+    expect(evidenceDocumentSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("rejects a credential whose validity ends before it starts", () => {
+    const bad = {
+      ...validCredentialDocument,
+      credential: {
+        ...validCredentialDocument.credential,
+        validUntil: "2025-01-01T00:00:00+08:00",
+      },
+    };
+    expect(evidenceDocumentSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("rejects a document whose content hash differs from its credential", () => {
+    const bad = {
+      ...validCredentialDocument,
+      contentHash: "demohash-tampered",
+    };
+    expect(evidenceDocumentSchema.safeParse(bad).success).toBe(false);
+  });
 });
 
 describe("evidenceQuestionSchema", () => {

@@ -17,8 +17,7 @@
  * 设计原则：
  *  - 完全**确定性**，不调用任何模型/LLM，保证现场 Demo 稳定复现。
  *  - 所有跨事件的中间状态严格按 transactionId 隔离，一笔交易收尾后清理，绝不串单。
- *  - 复用现有 EventRouter 的 causationId 自动传递：handler 返回的事件默认把
- *    causationId 指向触发它的上游事件，从而形成合理的因果链。
+ *  - 单卖家事件显式关联各自的上游事件，批量协调不会把 A/B 的因果关系误指向 C。
  *  - 不修改 Fastify API / React 前端 / 现有 purchase.requested 流程 / LLM 逻辑。
  */
 
@@ -29,6 +28,7 @@ import type {
   EvidenceDocument,
   EvidenceQuestion,
   EvidenceRequirement,
+  EvidenceSubmission,
   ExecutableIntent,
   NewAgentEvent,
   SellerScoreVector,
@@ -37,6 +37,7 @@ import type { EventRouter } from "../router/event-router.js";
 import {
   createNewbornBeddingScenario,
   type DemoVerifiableCredential,
+  type NewbornBeddingScenario,
   type SellerScenario,
 } from "./newborn-bedding.js";
 
@@ -52,6 +53,48 @@ export const WORKFLOW_ACTORS = {
   autoPurchase: "auto-purchase-agent",
   receiptIssuer: "receipt-issuer-agent",
 } as const;
+
+interface SubmittedEvidence {
+  eventId: string;
+  payload: EvidenceSubmission;
+}
+
+interface FinalScore {
+  eventId: string;
+  score: SellerScoreVector;
+}
+
+interface WorkflowTransactionState {
+  intentEventId: string;
+  matchedEventIds: Map<string, string>;
+  requestEventIds: Map<string, string>;
+  submissions: Map<string, SubmittedEvidence>;
+  finalScores: Map<string, FinalScore>;
+  evidenceRequested: boolean;
+}
+
+class WorkflowStateStore {
+  private readonly transactions = new Map<string, WorkflowTransactionState>();
+
+  begin(transactionId: string, intentEventId: string): void {
+    this.transactions.set(transactionId, {
+      intentEventId,
+      matchedEventIds: new Map(),
+      requestEventIds: new Map(),
+      submissions: new Map(),
+      finalScores: new Map(),
+      evidenceRequested: false,
+    });
+  }
+
+  get(transactionId: string): WorkflowTransactionState | undefined {
+    return this.transactions.get(transactionId);
+  }
+
+  clear(transactionId: string): void {
+    this.transactions.delete(transactionId);
+  }
+}
 
 /**
  * 机器询证问题清单（任务三要求至少覆盖以下 5 个）。
@@ -174,11 +217,15 @@ function credentialToDocument(
 class MarketplaceMatcherAgent implements AgentHandler {
   readonly id = WORKFLOW_ACTORS.matcher;
 
-  constructor(private readonly sellers: SellerScenario[]) {}
+  constructor(
+    private readonly sellers: SellerScenario[],
+    private readonly state: WorkflowStateStore,
+  ) {}
 
   async handle(event: AgentEvent): Promise<NewAgentEvent[]> {
     if (event.type !== "intent.published") return [];
     const intent = event.payload;
+    this.state.begin(event.transactionId, event.id);
 
     // 按 A、B、C 顺序产生匹配事件，matchScore 取各自验证前评分的 matchScore
     return this.sellers.map((seller) => ({
@@ -203,32 +250,42 @@ class MarketplaceMatcherAgent implements AgentHandler {
 
 class BuyerEvidenceAgent implements AgentHandler {
   readonly id = WORKFLOW_ACTORS.buyer;
-  // 按 transactionId 隔离：记录每笔交易已收到的匹配 sellerId
-  private readonly matched = new Map<string, Set<string>>();
 
   constructor(
     private readonly intent: ExecutableIntent,
     private readonly sellers: SellerScenario[],
+    private readonly state: WorkflowStateStore,
   ) {}
 
   async handle(event: AgentEvent): Promise<NewAgentEvent[]> {
     if (event.type !== "seller.matched") return [];
+    const transaction = this.state.get(event.transactionId);
+    if (!transaction || transaction.evidenceRequested) return [];
+    if (
+      event.payload.intentId !== this.intent.intentId ||
+      event.causationId !== transaction.intentEventId
+    ) {
+      return [];
+    }
+    if (!this.sellers.some((seller) => seller.sellerId === event.payload.sellerId)) {
+      return [];
+    }
 
-    const seen = this.matched.get(event.transactionId) ?? new Set<string>();
-    seen.add(event.payload.sellerId);
-    this.matched.set(event.transactionId, seen);
+    transaction.matchedEventIds.set(event.payload.sellerId, event.id);
 
     // 未收齐三家，先按兵不动
-    if (seen.size < this.sellers.length) return [];
-
-    // 收齐三家：清理本交易的中间状态，避免串单/内存泄漏
-    this.matched.delete(event.transactionId);
+    if (transaction.matchedEventIds.size < this.sellers.length) return [];
+    transaction.evidenceRequested = true;
 
     const questions = createEvidenceQuestions();
 
     // 先发布验证前评分（A、B、C），再发起证据请求（A、B、C）——数组顺序即入队顺序
     const preScores: NewAgentEvent[] = this.sellers.map((seller) =>
-      this.scoreEvent(event.transactionId, seller.preVerificationScore),
+      this.scoreEvent(
+        event.transactionId,
+        seller.preVerificationScore,
+        transaction.matchedEventIds.get(seller.sellerId),
+      ),
     );
 
     const requests: NewAgentEvent[] = this.sellers.map((seller) => ({
@@ -237,6 +294,7 @@ class BuyerEvidenceAgent implements AgentHandler {
       source: this.id,
       // target 指向具体卖家，卖家 Agent 只响应属于自己的请求
       target: seller.sellerId,
+      causationId: transaction.matchedEventIds.get(seller.sellerId),
       payload: {
         intentId: this.intent.intentId,
         sellerId: seller.sellerId,
@@ -254,12 +312,14 @@ class BuyerEvidenceAgent implements AgentHandler {
   private scoreEvent(
     transactionId: string,
     score: SellerScoreVector,
+    causationId: string | undefined,
   ): NewAgentEvent {
     return {
       transactionId,
       type: "seller.score.updated",
       source: this.id,
       target: score.sellerId,
+      causationId,
       payload: { ...score },
     };
   }
@@ -276,6 +336,7 @@ class NewbornBeddingSellerAgent implements AgentHandler {
   constructor(
     private readonly seller: SellerScenario,
     private readonly intent: ExecutableIntent,
+    private readonly state: WorkflowStateStore,
   ) {
     this.id = `seller-agent-${seller.sellerId}`;
   }
@@ -284,6 +345,16 @@ class NewbornBeddingSellerAgent implements AgentHandler {
     if (event.type !== "evidence.requested") return [];
     // 只处理发给自己的请求（A2A 定向）
     if (event.target !== this.seller.sellerId) return [];
+    const transaction = this.state.get(event.transactionId);
+    if (!transaction) return [];
+    if (
+      event.payload.intentId !== this.intent.intentId ||
+      event.payload.sellerId !== this.seller.sellerId ||
+      event.causationId !== transaction.matchedEventIds.get(this.seller.sellerId)
+    ) {
+      return [];
+    }
+    transaction.requestEventIds.set(this.seller.sellerId, event.id);
 
     // 把自身场景凭证映射为协议层证据文档（保留全部结构化字段）
     const documents = this.seller.credentials.map((credential) =>
@@ -312,33 +383,91 @@ class NewbornBeddingSellerAgent implements AgentHandler {
 // 收齐 3 个 evidence.submitted 后，发布验证后评分（×3，A、B、C）。
 // ---------------------------------------------------------------------------
 
+function hasAllMandatoryEvidence(
+  intent: ExecutableIntent,
+  documents: readonly EvidenceDocument[],
+  now: Date,
+): boolean {
+  return intent.evidenceRequirements
+    .filter((requirement) => requirement.mandatory)
+    .every((requirement) =>
+      documents.some((document) => {
+        const credential = document.credential;
+        return (
+          document.requirementId === requirement.id &&
+          credential !== undefined &&
+          credential.type === requirement.kind &&
+          credential.verificationStatus === "demo-verifiable" &&
+          credential.isDemoCredential === true &&
+          document.contentHash === credential.hash &&
+          Date.parse(credential.validFrom) <= now.getTime() &&
+          Date.parse(credential.validUntil) >= now.getTime()
+        );
+      }),
+    );
+}
+
 class EvidenceEvaluatorAgent implements AgentHandler {
   readonly id = WORKFLOW_ACTORS.evaluator;
-  // 按 transactionId 隔离：记录每笔交易已收到提交的 sellerId
-  private readonly submitted = new Map<string, Set<string>>();
 
-  constructor(private readonly sellers: SellerScenario[]) {}
+  constructor(
+    private readonly intent: ExecutableIntent,
+    private readonly sellers: SellerScenario[],
+    private readonly state: WorkflowStateStore,
+    private readonly now: () => Date,
+  ) {}
 
   async handle(event: AgentEvent): Promise<NewAgentEvent[]> {
     if (event.type !== "evidence.submitted") return [];
+    const transaction = this.state.get(event.transactionId);
+    if (!transaction) return [];
+    const expectedRequestId = transaction.requestEventIds.get(
+      event.payload.sellerId,
+    );
+    if (
+      !expectedRequestId ||
+      event.causationId !== expectedRequestId ||
+      event.payload.intentId !== this.intent.intentId ||
+      !this.sellers.some((seller) => seller.sellerId === event.payload.sellerId)
+    ) {
+      return [];
+    }
 
-    const seen = this.submitted.get(event.transactionId) ?? new Set<string>();
-    seen.add(event.payload.sellerId);
-    this.submitted.set(event.transactionId, seen);
+    transaction.submissions.set(event.payload.sellerId, {
+      eventId: event.id,
+      payload: event.payload,
+    });
+    if (transaction.submissions.size < this.sellers.length) return [];
 
-    if (seen.size < this.sellers.length) return [];
+    const evaluatedAt = this.now();
+    return this.sellers.map((seller) => {
+      const submission = transaction.submissions.get(seller.sellerId);
+      if (!submission) throw new Error(`Missing submission for ${seller.sellerId}`);
 
-    // 收齐三家：清理状态
-    this.submitted.delete(event.transactionId);
+      const score = { ...seller.postVerificationScore };
+      const evidenceValid = hasAllMandatoryEvidence(
+        this.intent,
+        submission.payload.documents,
+        evaluatedAt,
+      );
+      const deliveryValid = seller.deliveryHours <= this.intent.deadlineHours;
+      if (!evidenceValid || !deliveryValid) {
+        score.stage = "rejected";
+        score.riskScore = Math.max(
+          score.riskScore,
+          Math.min(1, this.intent.riskThreshold + 0.01),
+        );
+      }
 
-    // 发布验证后评分（A、B、C），source=evaluator，供 AutoPurchaseAgent 区分"验证后"批次
-    return this.sellers.map((seller) => ({
-      transactionId: event.transactionId,
-      type: "seller.score.updated" as const,
-      source: this.id,
-      target: seller.sellerId,
-      payload: { ...seller.postVerificationScore },
-    }));
+      return {
+        transactionId: event.transactionId,
+        type: "seller.score.updated" as const,
+        source: this.id,
+        target: seller.sellerId,
+        causationId: submission.eventId,
+        payload: score,
+      };
+    });
   }
 }
 
@@ -349,30 +478,33 @@ class EvidenceEvaluatorAgent implements AgentHandler {
 
 class AutoPurchaseAgent implements AgentHandler {
   readonly id = WORKFLOW_ACTORS.autoPurchase;
-  // 按 transactionId 隔离：累积每笔交易的验证后评分
-  private readonly postScores = new Map<string, SellerScoreVector[]>();
 
   constructor(
     private readonly intent: ExecutableIntent,
     private readonly sellers: SellerScenario[],
+    private readonly state: WorkflowStateStore,
+    private readonly now: () => Date,
   ) {}
 
   async handle(event: AgentEvent): Promise<NewAgentEvent[]> {
     if (event.type !== "seller.score.updated") return [];
     // 仅统计"验证后"评分：验证前评分由 buyer 发布，验证后由 evaluator 发布
     if (event.source !== WORKFLOW_ACTORS.evaluator) return [];
-
-    const scores = this.postScores.get(event.transactionId) ?? [];
-    scores.push({ ...event.payload });
-    this.postScores.set(event.transactionId, scores);
-
-    if (scores.length < this.sellers.length) return [];
-
-    // 收齐三家验证后评分：清理状态
-    this.postScores.delete(event.transactionId);
+    const transaction = this.state.get(event.transactionId);
+    const submission = transaction?.submissions.get(event.payload.sellerId);
+    if (!transaction || !submission || event.causationId !== submission.eventId) {
+      return [];
+    }
+    transaction.finalScores.set(event.payload.sellerId, {
+      eventId: event.id,
+      score: { ...event.payload },
+    });
+    if (transaction.finalScores.size < this.sellers.length) return [];
 
     // 逐个卖家检查自动购买条件，挑出合格者
-    const eligible = scores.filter((score) => this.isEligible(score));
+    const eligible = Array.from(transaction.finalScores.values())
+      .map((finalScore) => finalScore.score)
+      .filter((score) => this.isEligible(score, transaction));
 
     // 从合格者里选 totalScore 最高的（并列时取先出现者，保持确定性）
     const winner = eligible.reduce<SellerScoreVector | null>((best, current) => {
@@ -381,12 +513,23 @@ class AutoPurchaseAgent implements AgentHandler {
     }, null);
 
     // 没有任何合格卖家：不产生授权（本场景不会发生，但逻辑上要成立）
-    if (!winner) return [];
+    if (!winner) {
+      this.state.clear(event.transactionId);
+      return [];
+    }
 
     const winnerScenario = this.sellers.find(
       (seller) => seller.sellerId === winner.sellerId,
     );
-    if (!winnerScenario) return [];
+    if (!winnerScenario) {
+      this.state.clear(event.transactionId);
+      return [];
+    }
+    const winnerScore = transaction.finalScores.get(winner.sellerId);
+    if (!winnerScore) {
+      this.state.clear(event.transactionId);
+      return [];
+    }
 
     return [
       {
@@ -394,12 +537,13 @@ class AutoPurchaseAgent implements AgentHandler {
         type: "order.authorized",
         source: this.id,
         target: winner.sellerId,
+        causationId: winnerScore.eventId,
         payload: {
           intentId: this.intent.intentId,
           sellerId: winner.sellerId,
           authorizedAmountUsd: winnerScenario.finalPriceUsd,
           scoreSnapshot: { ...winner },
-          autoApproved: this.intent.autoPurchasePolicy.enabled,
+          autoApproved: true,
         },
       },
     ];
@@ -409,7 +553,10 @@ class AutoPurchaseAgent implements AgentHandler {
    * 判定某卖家是否满足自动购买全部硬性条件。
    * 逐条对照意图与自动购买协议，任何一条不满足即淘汰。
    */
-  private isEligible(score: SellerScoreVector): boolean {
+  private isEligible(
+    score: SellerScoreVector,
+    transaction: WorkflowTransactionState,
+  ): boolean {
     const scenario = this.sellers.find(
       (seller) => seller.sellerId === score.sellerId,
     );
@@ -417,46 +564,35 @@ class AutoPurchaseAgent implements AgentHandler {
 
     const policy = this.intent.autoPurchasePolicy;
 
-    // 1) 未被淘汰
+    // 1) 自动购买已启用
+    if (!policy.enabled) return false;
+    // 2) 未被淘汰
     if (score.stage === "rejected") return false;
-    // 2) 风险低于意图风险阈值
+    // 3) 风险低于意图风险阈值
     if (score.riskScore >= this.intent.riskThreshold) return false;
-    // 3) 综合总分达标
+    // 4) 综合总分达标
     if (score.totalScore < policy.minTotalScore) return false;
-    // 4) 信任分达标
+    // 5) 信任分达标
     if (score.trustScore < policy.minTrustScore) return false;
-    // 5) 最终成交价不超过自动成交上限
+    // 6) 最终成交价不超过自动成交上限
     if (scenario.finalPriceUsd > policy.maxAutoSpendUsd) return false;
-    // 6) 交期不超过意图上限
+    // 7) 交期不超过意图上限
     if (scenario.deliveryHours > this.intent.deadlineHours) return false;
-    // 7) 所有 mandatory 证据齐备且类型与要求匹配
-    if (policy.requireAllMandatoryEvidence && !this.hasAllMandatoryEvidence(scenario)) {
+    // 8) 所有 mandatory 证据必须来自本次实际提交且通过校验
+    const submission = transaction.submissions.get(score.sellerId);
+    if (!submission) return false;
+    if (
+      policy.requireAllMandatoryEvidence &&
+      !hasAllMandatoryEvidence(
+        this.intent,
+        submission.payload.documents,
+        this.now(),
+      )
+    ) {
       return false;
     }
 
     return true;
-  }
-
-  /**
-   * 校验某卖家是否提供了意图要求的**全部** mandatory 证据，
-   * 且每张凭证的类型与对应 requirement 的 kind 一致。
-   */
-  private hasAllMandatoryEvidence(scenario: SellerScenario): boolean {
-    const mandatory = this.intent.evidenceRequirements.filter(
-      (requirement) => requirement.mandatory,
-    );
-
-    return mandatory.every((requirement) => {
-      const credential = scenario.credentials.find(
-        (item) => item.requirementId === requirement.id,
-      );
-      // 必须存在、可验证、且类型与要求匹配
-      return (
-        credential !== undefined &&
-        credential.verificationStatus === "demo-verifiable" &&
-        credential.type === requirement.kind
-      );
-    });
   }
 }
 
@@ -471,6 +607,7 @@ class ReceiptIssuerAgent implements AgentHandler {
 
   constructor(
     private readonly sellers: SellerScenario[],
+    private readonly state: WorkflowStateStore,
     // 可注入的时间源，便于测试确定性；默认取当前时间
     private readonly now: () => Date,
   ) {}
@@ -478,29 +615,44 @@ class ReceiptIssuerAgent implements AgentHandler {
   async handle(event: AgentEvent): Promise<NewAgentEvent[]> {
     if (event.type !== "order.authorized") return [];
     const authorized = event.payload;
+    const transaction = this.state.get(event.transactionId);
+    if (!transaction) return [];
 
     const winner = this.sellers.find(
       (seller) => seller.sellerId === authorized.sellerId,
     );
     if (!winner) return [];
+    const submission = transaction.submissions.get(winner.sellerId);
+    const finalScore = transaction.finalScores.get(winner.sellerId);
+    if (
+      !submission ||
+      !finalScore ||
+      event.source !== WORKFLOW_ACTORS.autoPurchase ||
+      event.causationId !== finalScore.eventId
+    ) {
+      return [];
+    }
 
-    return [
-      {
-        transactionId: event.transactionId,
-        type: "receipt.issued",
-        source: this.id,
-        target: winner.sellerId,
-        payload: {
-          receiptId: `receipt-${event.transactionId}-${winner.sellerId}`,
-          intentId: authorized.intentId,
-          sellerId: winner.sellerId,
-          amountUsd: authorized.authorizedAmountUsd,
-          deliveryHours: winner.deliveryHours,
-          evidenceSnapshotHash: computeEvidenceSnapshotHash(winner),
-          issuedAt: this.now().toISOString(),
-        },
+    const receipt: NewAgentEvent = {
+      transactionId: event.transactionId,
+      type: "receipt.issued",
+      source: this.id,
+      target: winner.sellerId,
+      payload: {
+        receiptId: `receipt-${event.transactionId}-${winner.sellerId}`,
+        intentId: authorized.intentId,
+        sellerId: winner.sellerId,
+        amountUsd: authorized.authorizedAmountUsd,
+        deliveryHours: winner.deliveryHours,
+        evidenceSnapshotHash: computeEvidenceSnapshotHash(
+          submission.payload.documents,
+        ),
+        issuedAt: this.now().toISOString(),
       },
-    ];
+    };
+    this.state.clear(event.transactionId);
+
+    return [receipt];
   }
 }
 
@@ -509,9 +661,11 @@ class ReceiptIssuerAgent implements AgentHandler {
  * 排序保证与提交顺序无关的确定性；结果作为回执的证据快照哈希，供事后复算核验。
  * 导出以便测试可独立重算并比对，杜绝固定占位字符串。
  */
-export function computeEvidenceSnapshotHash(seller: SellerScenario): string {
-  const contentHashes = seller.credentials
-    .map((credential) => credential.hash)
+export function computeEvidenceSnapshotHash(
+  documents: readonly EvidenceDocument[],
+): string {
+  const contentHashes = documents
+    .map((document) => document.contentHash)
     .sort();
 
   return createHash("sha256").update(contentHashes.join("\n")).digest("hex");
@@ -529,6 +683,8 @@ export interface NewbornBeddingWorkflowOptions {
   sleep?: (ms: number) => Promise<void>;
   // 可注入的时间源，便于测试稳定 issuedAt；默认 () => new Date()
   now?: () => Date;
+  // 可注入场景，主要用于验证不同授权策略；默认使用标准新生儿床品场景
+  scenario?: NewbornBeddingScenario;
 }
 
 /** registerNewbornBeddingWorkflow 的返回句柄。 */
@@ -537,7 +693,11 @@ export interface NewbornBeddingWorkflowHandle {
   intent: ExecutableIntent;
   // 本次注册使用的卖家场景快照
   sellers: SellerScenario[];
+  stepDelayMs: number;
+  sleep: (ms: number) => Promise<void>;
 }
+
+const registrations = new WeakMap<EventRouter, NewbornBeddingWorkflowHandle>();
 
 /** 默认 sleep：基于 setTimeout。 */
 function defaultSleep(ms: number): Promise<void> {
@@ -552,24 +712,29 @@ function defaultSleep(ms: number): Promise<void> {
  * 保证同一 router 上多笔交易共享同一套确定性规则；跨交易的中间状态由各 Agent
  * 内部按 transactionId 隔离并在收尾时清理。
  *
- * 注：stepDelayMs/sleep 目前用于外部运行入口（runNewbornBeddingWorkflow）控制
- * 意图发布前的起播节奏；Agent 内部处理保持同步确定性，避免打乱事件顺序。
+ * stepDelayMs/sleep 会由运行入口配置到 EventRouter，对该 transactionId 的相邻事件
+ * 逐个应用间隔；其他交易与原有采购流程不受影响。
  */
 export function registerNewbornBeddingWorkflow(
   router: EventRouter,
   options: NewbornBeddingWorkflowOptions = {},
 ): NewbornBeddingWorkflowHandle {
-  const scenario = createNewbornBeddingScenario();
+  if (registrations.has(router)) {
+    throw new Error("Newborn bedding workflow is already registered");
+  }
+
+  const scenario = options.scenario ?? createNewbornBeddingScenario();
   const { intent, sellers } = scenario;
   const now = options.now ?? (() => new Date());
+  const state = new WorkflowStateStore();
 
-  const matcher = new MarketplaceMatcherAgent(sellers);
-  const buyer = new BuyerEvidenceAgent(intent, sellers);
-  const evaluator = new EvidenceEvaluatorAgent(sellers);
-  const autoPurchase = new AutoPurchaseAgent(intent, sellers);
-  const receiptIssuer = new ReceiptIssuerAgent(sellers, now);
+  const matcher = new MarketplaceMatcherAgent(sellers, state);
+  const buyer = new BuyerEvidenceAgent(intent, sellers, state);
+  const evaluator = new EvidenceEvaluatorAgent(intent, sellers, state, now);
+  const autoPurchase = new AutoPurchaseAgent(intent, sellers, state, now);
+  const receiptIssuer = new ReceiptIssuerAgent(sellers, state, now);
   const sellerAgents = sellers.map(
-    (seller) => new NewbornBeddingSellerAgent(seller, intent),
+    (seller) => new NewbornBeddingSellerAgent(seller, intent, state),
   );
 
   // intent.published → 匹配
@@ -587,7 +752,14 @@ export function registerNewbornBeddingWorkflow(
   // order.authorized → 签发回执
   router.subscribe("order.authorized", receiptIssuer);
 
-  return { intent, sellers };
+  const handle = {
+    intent,
+    sellers,
+    stepDelayMs: options.stepDelayMs ?? 0,
+    sleep: options.sleep ?? defaultSleep,
+  };
+  registrations.set(router, handle);
+  return handle;
 }
 
 /**
@@ -598,24 +770,30 @@ export function registerNewbornBeddingWorkflow(
  *
  * @param router 已注册工作流的事件路由
  * @param transactionId 本笔交易的隔离 id
- * @param options 可选的起播延迟/时间注入（与注册项一致）
+ * @param options 可覆盖注册时配置的逐事件延迟与 sleep 实现
  */
 export async function runNewbornBeddingWorkflow(
   router: EventRouter,
   transactionId: string,
   options: NewbornBeddingWorkflowOptions = {},
 ): Promise<void> {
-  const intent = createNewbornBeddingScenario().intent;
-  const sleep = options.sleep ?? defaultSleep;
+  const registration = registrations.get(router);
+  if (!registration) {
+    throw new Error("Register the newborn bedding workflow before running it");
+  }
+  const stepDelayMs = options.stepDelayMs ?? registration.stepDelayMs;
+  const sleep = options.sleep ?? registration.sleep;
+  router.configureTransactionPacing(transactionId, stepDelayMs, sleep);
 
-  // 起播节奏：现场 Demo 可用 stepDelayMs 制造停顿；测试传 0 即无等待
-  await sleep(options.stepDelayMs ?? 0);
-
-  await router.publish({
-    transactionId,
-    type: "intent.published",
-    source: WORKFLOW_ACTORS.buyer,
-    target: WORKFLOW_ACTORS.matcher,
-    payload: intent,
-  });
+  try {
+    await router.publish({
+      transactionId,
+      type: "intent.published",
+      source: WORKFLOW_ACTORS.buyer,
+      target: WORKFLOW_ACTORS.matcher,
+      payload: registration.intent,
+    });
+  } finally {
+    router.clearTransactionPacing(transactionId);
+  }
 }
