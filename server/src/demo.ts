@@ -65,6 +65,21 @@ const labels: Record<AgentEventType, string> = {
   "distribution.agent.matched": "匹配分销 Agent",
   "distribution.orders.completed": "分销网络规模成交",
   "distribution.commission.released": "履约鉴证后释放佣金",
+  "intent-growth.market.ranked": "意图市场生成商家排行榜",
+  "intent-growth.seller.shortlisted": "买家选出沟通商家",
+  "intent-growth.dialogue.round": "买卖 Agent 多轮沟通",
+  "intent-growth.seller.lost": "商家落选并进入复盘",
+  "intent-growth.learning.started": "Intent Learning Engine 启动",
+  "intent-growth.intent.extracted": "提取可用 Intent",
+  "intent-growth.gap.detected": "识别商品能力缺口",
+  "intent-growth.product.field.updated": "写入商品能力字段",
+  "intent-growth.product.version.published": "发布新版 Product Output",
+  "intent-growth.buyer.rematched": "新买家重新匹配商品",
+  "intent-growth.quote.requested": "Buyer Agent 请求报价",
+  "intent-growth.terms.negotiated": "A2A 自动议价",
+  "intent-growth.order.signed": "机器可执行订单签署",
+  "intent-growth.attestation.issued": "RepChain 履约鉴证",
+  "intent-growth.rank.updated": "信用回流并提升排名",
 };
 
 mkdirSync("data", { recursive: true });

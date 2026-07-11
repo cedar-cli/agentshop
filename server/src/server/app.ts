@@ -86,6 +86,16 @@ export function buildApp(
     });
   });
 
+  app.post("/api/seller/intent-growth", async (_request, reply) => {
+    const transactionId = service.createIntentGrowthDemo();
+    return reply.status(202).send({
+      transactionId,
+      status: "queued",
+      transactionUrl: `/api/transactions/${transactionId}`,
+      eventsUrl: `/api/transactions/${transactionId}/events`,
+    });
+  });
+
   app.get("/api/active-services", async () => ({
     services: service.listActiveServices(),
   }));

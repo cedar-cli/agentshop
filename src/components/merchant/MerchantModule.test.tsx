@@ -44,4 +44,15 @@ describe('商家端演示工作台', () => {
     expect(screen.getByRole('button', { name: /启动需求网络/ })).toBeInTheDocument()
     expect(screen.getByText('3.0%')).toBeInTheDocument()
   })
+
+  it('意图增长页展示落选学习、商品优化和真实启动入口', async () => {
+    const user = userEvent.setup()
+    render(<MerchantModule />)
+    await user.click(screen.getByRole('button', { name: /意图增长/ }))
+    expect(screen.getByText('商品能力从输掉的 Agent 交易中生长')).toBeInTheDocument()
+    expect(screen.getByText('Buyer Agent Conversations')).toBeInTheDocument()
+    expect(screen.getByText('Usable Intent Output')).toBeInTheDocument()
+    expect(screen.getByText('Order + Reputation')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /启动主动优化/ })).toBeInTheDocument()
+  })
 })

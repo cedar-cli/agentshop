@@ -34,6 +34,58 @@ function genericEvent(event: StoredEvent): DemoEvent {
       const value = record<{ amountUsd: number; humanClicks: number }>(event)
       return { ...common, kind: 'payment', actor: 'Buyer Agent', title: '授权范围内自动成交', body: `成交 $${value.amountUsd}，人类点击 ${value.humanClicks} 次。` }
     }
+    case 'intent-growth.market.ranked': {
+      const value = record<{ title: string; currentRank: number; currentScore: number }>(event)
+      return { ...common, kind: 'comparison', actor: 'Intent Market Router', title: '首次意图排行榜生成', body: `${value.title} · 当前排名 #${value.currentRank}`, impact: `匹配分 ${value.currentScore}` }
+    }
+    case 'intent-growth.seller.shortlisted':
+      return { ...common, kind: 'comparison', actor: 'Buyer Agent', title: '进入前三沟通名单', body: record<{ reason: string }>(event).reason }
+    case 'intent-growth.dialogue.round': {
+      const value = record<{ buyerName: string; role: 'buyer' | 'seller'; text: string }>(event)
+      return { ...common, kind: 'seller-message', actor: value.role === 'buyer' ? value.buyerName : 'LumaCalm Seller Agent', title: value.role === 'buyer' ? '买家提出采购约束' : '商家回应能力边界', body: value.text }
+    }
+    case 'intent-growth.seller.lost':
+      return { ...common, kind: 'evidence', actor: 'Buyer Agent', title: '首次竞标落选', body: record<{ reason: string }>(event).reason, impact: '触发失败复盘' }
+    case 'intent-growth.learning.started': {
+      const value = record<{ dialogueRounds: number; observedSignals: number; generatedBy: 'llm' | 'fallback' }>(event)
+      return { ...common, kind: 'agent', actor: 'Intent Learning Engine', title: '吸收落选对话', body: `${value.dialogueRounds} 轮对话进入学习引擎；历史信号规模 ${value.observedSignals}（模拟）。`, origin: value.generatedBy === 'llm' ? 'llm' : 'rule' }
+    }
+    case 'intent-growth.intent.extracted': {
+      const value = record<{ label: string; value: string; confidence: number; generatedBy: 'llm' | 'fallback' }>(event)
+      return { ...common, kind: 'evidence', actor: 'Intent Learning Engine', title: `Intent READY · ${value.label}`, body: value.value, impact: `置信度 ${value.confidence}%`, origin: value.generatedBy === 'llm' ? 'llm' : 'rule' }
+    }
+    case 'intent-growth.gap.detected':
+      return { ...common, kind: 'comparison', actor: 'Intent Learning Engine', title: '识别商品能力缺口', body: record<{ summary: string }>(event).summary }
+    case 'intent-growth.product.field.updated': {
+      const value = record<{ field: string; value: string; coverageAfter: number }>(event)
+      return { ...common, kind: 'agent', actor: 'Product Agent', title: `写入 ${value.field}`, body: value.value, impact: `Coverage ${value.coverageAfter}%` }
+    }
+    case 'intent-growth.product.version.published': {
+      const value = record<{ productName: string; previousVersion: string; version: string; coverageAfter: number }>(event)
+      return { ...common, kind: 'evidence', actor: 'Product Agent', title: `Product Output ${value.previousVersion} → ${value.version}`, body: value.productName, impact: `Coverage ${value.coverageAfter}%` }
+    }
+    case 'intent-growth.buyer.rematched': {
+      const value = record<{ buyerName: string; scoreBefore: number; scoreAfter: number; rankBefore: number; rankAfter: number }>(event)
+      return { ...common, kind: 'comparison', actor: `${value.buyerName} Buyer Agent`, title: '新版商品重新匹配', body: `新增字段全部满足采购约束，匹配分 ${value.scoreBefore} → ${value.scoreAfter}。`, impact: `#${value.rankBefore} → #${value.rankAfter}` }
+    }
+    case 'intent-growth.quote.requested':
+      return { ...common, kind: 'negotiation', actor: 'Little Steps Buyer Agent', title: '请求机器可执行报价', body: '80 套 · 9 天 SLA · 阶梯价 · 延期赔付' }
+    case 'intent-growth.terms.negotiated': {
+      const value = record<{ unitPriceUsd: number; quantity: number; deliveryDays: number; delayPenaltyPercent: number; totalUsd: number }>(event)
+      return { ...common, kind: 'negotiation', actor: 'Buyer Agent ↔ Seller Agent', title: 'A2A 条款达成', body: `$${value.unitPriceUsd}/套 · ${value.quantity} 套 · ${value.deliveryDays} 天交付 · 延期 ${value.delayPenaltyPercent}% 赔付`, impact: `$${value.totalUsd.toLocaleString()}` }
+    }
+    case 'intent-growth.order.signed': {
+      const value = record<{ orderId: string; totalUsd: number }>(event)
+      return { ...common, kind: 'payment', actor: 'Contract Agent', title: '机器可执行订单签署', body: `${value.orderId} · $${value.totalUsd.toLocaleString()}` }
+    }
+    case 'intent-growth.attestation.issued': {
+      const value = record<{ trustDelta: number }>(event)
+      return { ...common, kind: 'attestation', actor: 'RepChain', title: '模拟履约鉴证完成', body: '9 天交付、商品证据、SLA 与售后规则全部通过。', impact: `TRUST +${value.trustDelta}`, origin: 'simulation' }
+    }
+    case 'intent-growth.rank.updated': {
+      const value = record<{ rankBefore: number; rankAfter: number; ordersPerDayAfter: number; projectedNewIntents: number }>(event)
+      return { ...common, kind: 'memory', actor: 'Intent Market Router', title: '信用回流推动升榜', body: `Intent Rank #${value.rankBefore} → #${value.rankAfter}；规模指标为模拟预测。`, impact: `${value.ordersPerDayAfter} orders/day · +${value.projectedNewIntents} intents` }
+    }
     default:
       return { ...common, kind: 'agent', actor: event.source, title: event.type, body: JSON.stringify(event.payload) }
   }
@@ -55,11 +107,11 @@ export function adaptMerchantTransaction(transaction: MerchantTransactionDto): D
   const completed = transaction.status === 'completed'
   return {
     id: transaction.id,
-    title: transaction.kind === 'active-sales-demo' ? '授权主动销售' : '实时 Agent 采购',
+    title: transaction.kind === 'active-sales-demo' ? '授权主动销售' : transaction.kind === 'intent-growth-demo' ? '意图训练后赢单' : '实时 Agent 采购',
     product: transaction.product,
     category: transaction.category,
     scene: 'passive',
-    sceneLabel: '实时跨端交易',
+    sceneLabel: transaction.kind === 'intent-growth-demo' ? '商家主动优化' : '实时跨端交易',
     mode: 'autonomous',
     status: completed ? 'completed' : transaction.status === 'awaiting-approval' ? 'awaiting' : 'negotiating',
     statusLabel: transaction.statusLabel,

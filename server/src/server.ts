@@ -8,6 +8,7 @@ import { OpenAIEvidenceAnswerGenerator } from "./llm/openai-evidence-answer-gene
 import { OpenAILaptopAgent } from "./llm/openai-laptop-agent.js";
 import { OpenAIActiveSalesAgent } from "./llm/openai-active-sales-agent.js";
 import { OpenAIDemandNetworkAgent } from "./llm/openai-demand-network-agent.js";
+import { OpenAIIntentGrowthAgent } from "./llm/openai-intent-growth-agent.js";
 import { getModel } from "./llm/client.js";
 import { buildApp } from "./server/app.js";
 
@@ -57,6 +58,8 @@ const service = new TransactionService({
   activeSalesLlmAgent: new OpenAIActiveSalesAgent(),
   activeSalesDecisionDelayMs: 1500,
   demandNetworkLlmAgent: new OpenAIDemandNetworkAgent(),
+  intentGrowthLlmAgent: new OpenAIIntentGrowthAgent(),
+  intentGrowthStepDelayMs: 220,
 });
 const app = buildApp(service, {
   runtimeInfo: {

@@ -9,6 +9,7 @@ import type { LaptopLlmAgent } from "../llm/laptop-agent.js";
 import type { ActiveSalesLlmAgent } from "../llm/active-sales-agent.js";
 import type { DemandNetworkLlmAgent } from "../llm/demand-network-agent.js";
 import type { DemandNeedFact } from "../llm/demand-network-agent.js";
+import type { IntentGrowthLlmAgent } from "../llm/intent-growth-agent.js";
 import { SellerAgent } from "../agents/seller-agent.js";
 import {
   sellerProfiles,
@@ -32,6 +33,7 @@ import {
 import { createRestockIntent, runHouseholdRestockWorkflow } from "../scenario/household-restock-workflow.js";
 import { activeSalesProduct, runActiveSalesWorkflow } from "../scenario/active-sales-workflow.js";
 import { runDemandNetworkWorkflow } from "../scenario/demand-network-workflow.js";
+import { intentGrowthProduct, runIntentGrowthWorkflow } from "../scenario/intent-growth-workflow.js";
 import { SseHub, type SseListener } from "../server/sse-hub.js";
 import { EventStore, type StoredEvent } from "../store/event-store.js";
 import { projectMerchantTransaction, type MerchantTransactionProjection } from "./merchant-transactions.js";
@@ -48,7 +50,7 @@ export type TransactionStatus =
  *  - purchase：现有的普通采购交易，request 为 PurchaseRequest。
  *  - newborn-bedding-demo：新生儿床品 A2A 演示，request 为可执行意图 ExecutableIntent。
  */
-export type TransactionKind = "purchase" | "newborn-bedding-demo" | "laptop-demo" | "household-restock-demo" | "active-sales-demo" | "demand-network-demo";
+export type TransactionKind = "purchase" | "newborn-bedding-demo" | "laptop-demo" | "household-restock-demo" | "active-sales-demo" | "demand-network-demo" | "intent-growth-demo";
 
 interface TransactionRecord {
   id: string;
@@ -91,6 +93,8 @@ export interface TransactionServiceOptions {
   activeSalesLlmAgent?: ActiveSalesLlmAgent;
   activeSalesDecisionDelayMs?: number;
   demandNetworkLlmAgent?: DemandNetworkLlmAgent;
+  intentGrowthLlmAgent?: IntentGrowthLlmAgent;
+  intentGrowthStepDelayMs?: number;
 }
 
 export class TransactionService {
@@ -105,6 +109,8 @@ export class TransactionService {
   private readonly activeSalesLlmAgent?: ActiveSalesLlmAgent;
   private readonly activeSalesDecisionDelayMs: number;
   private readonly demandNetworkLlmAgent?: DemandNetworkLlmAgent;
+  private readonly intentGrowthLlmAgent?: IntentGrowthLlmAgent;
+  private readonly intentGrowthStepDelayMs: number;
   private readonly proposalGenerator: ProposalGenerator;
   private readonly counterNegotiator?: CounterNegotiator;
   private readonly laptopApprovals = new Map<string, LaptopApprovalState>();
@@ -123,6 +129,8 @@ export class TransactionService {
     this.activeSalesLlmAgent = options.activeSalesLlmAgent;
     this.activeSalesDecisionDelayMs = Math.max(0, options.activeSalesDecisionDelayMs ?? 0);
     this.demandNetworkLlmAgent = options.demandNetworkLlmAgent;
+    this.intentGrowthLlmAgent = options.intentGrowthLlmAgent;
+    this.intentGrowthStepDelayMs = Math.max(0, options.intentGrowthStepDelayMs ?? 0);
     this.proposalGenerator = options.proposalGenerator;
     this.counterNegotiator = options.counterNegotiator;
     this.store = new EventStore(options.databaseFilename);
@@ -209,6 +217,10 @@ export class TransactionService {
 
   createDemandNetworkDemo(request: DemandNetworkRequest): string {
     return this.enqueue("demand-network-demo", request);
+  }
+
+  createIntentGrowthDemo(): string {
+    return this.enqueue("intent-growth-demo", { productId: intentGrowthProduct.productId });
   }
 
   listMerchantTransactions(): MerchantTransactionProjection[] {
@@ -417,6 +429,13 @@ export class TransactionService {
           transaction.request as DemandNetworkRequest,
           this.demandNetworkLlmAgent,
           [...this.consumerMarketNeeds.values()],
+        );
+      } else if (transaction.kind === "intent-growth-demo") {
+        await runIntentGrowthWorkflow(
+          this.router,
+          transactionId,
+          this.intentGrowthLlmAgent,
+          this.intentGrowthStepDelayMs,
         );
       } else {
         // 采购：保留原有发布 purchase.requested 的行为

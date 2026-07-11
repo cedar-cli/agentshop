@@ -92,6 +92,20 @@ export function projectMerchantTransaction(transaction: TransactionLike): Mercha
     };
   }
 
+  if (transaction.kind === "intent-growth-demo") {
+    const order = latest<{ buyerName: string; totalUsd: number }>(events, "intent-growth.order.signed");
+    const rank = latest<{ scoreAfter: number }>(events, "intent-growth.rank.updated");
+    const version = latest<{ productName: string; version: string }>(events, "intent-growth.product.version.published");
+    return {
+      id: transaction.id, kind: transaction.kind, status: transaction.status,
+      statusLabel: statusLabel(transaction.status), buyerName: order?.buyerName ?? "Intent Learning Engine",
+      product: version ? `${version.productName} · ${version.version}` : "LumaCalm Product Output v2.1", category: "母婴床品",
+      mechanism: "落选对话学习 + 商品进化", constraints: ["60°C 清洗", "120 次耐久", "9 天批量 SLA"],
+      budget: 9200, amount: order?.totalUsd, currency: "USD", winner: "LumaCalm Seller Agent",
+      score: rank?.scoreAfter ?? 96, updatedAt, events, chainValid: transaction.chainValid,
+    };
+  }
+
   if (transaction.kind === "newborn-bedding-demo") {
     const intent = latest<{ productDescription: string; budgetUsd: number; deadlineHours: number }>(events, "intent.published");
     const receipt = latest<{ amountUsd: number }>(events, "receipt.issued");
