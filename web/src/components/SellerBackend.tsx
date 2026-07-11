@@ -54,13 +54,24 @@ export function SellerBackend({
       </div>
 
       <ul className="backend-feed">
-        {/* 第二幕：检测到高价值意图 */}
-        <BackendItem
-          on={matched}
-          icon={<Radar size={13} />}
-          tone="blue"
-          text="New high-value intent detected"
-        />
+        {!matched && (
+          <BackendItem
+            on={false}
+            icon={<Radar size={13} />}
+            tone="blue"
+            text="Listening for qualified intents"
+          />
+        )}
+
+        {/* 第二幕：检测到高价值意图，匹配前不提前显示 */}
+        {matched && (
+          <BackendItem
+            on
+            icon={<Radar size={13} />}
+            tone="blue"
+            text="New high-value intent detected"
+          />
+        )}
 
         {/* 第三幕：Trust 上升、Rank 移动 */}
         {pre && post && (
@@ -73,19 +84,23 @@ export function SellerBackend({
         )}
 
         {/* 第四幕：赢得意图、创建订单 */}
-        <BackendItem
-          on={won}
-          icon={<Trophy size={13} />}
-          tone="yellow"
-          text="Intent Rank: WON"
-          emphasis
-        />
-        <BackendItem
-          on={won}
-          icon={<PackageCheck size={13} />}
-          tone="green"
-          text="Agent Order Created"
-        />
+        {won && (
+          <>
+            <BackendItem
+              on
+              icon={<Trophy size={13} />}
+              tone="yellow"
+              text="Intent Rank: WON"
+              emphasis
+            />
+            <BackendItem
+              on
+              icon={<PackageCheck size={13} />}
+              tone="green"
+              text="Agent Order Created"
+            />
+          </>
+        )}
       </ul>
     </div>
   );

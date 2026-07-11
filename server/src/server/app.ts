@@ -126,7 +126,8 @@ export function buildApp(
     void app.register(fastifyStatic, {
       root: frontendRoot,
       prefix: "/",
-      wildcard: false,
+      // 使用动态通配路由，前端重新 build 产生新 hash 文件后无需重启服务注册新路径。
+      wildcard: true,
     });
   }
 

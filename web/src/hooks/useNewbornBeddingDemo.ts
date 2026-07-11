@@ -99,11 +99,21 @@ export function useNewbornBeddingDemo(): NewbornBeddingDemo {
   const transactionRef = useRef<string | undefined>(undefined);
   // 是否已完成收尾：防止 onerror 与收尾快照竞争、重复加载
   const settledRef = useRef(false);
+  // SSE 断线后的快照轮询定时器；reset/replay/unmount 时必须清理
+  const fallbackTimerRef = useRef<number | undefined>(undefined);
 
   /** 关闭当前 EventSource（幂等）。 */
   const closeSource = useCallback(() => {
     sourceRef.current?.close();
     sourceRef.current = undefined;
+  }, []);
+
+  /** 停止当前快照轮询（幂等）。 */
+  const stopFallbackPolling = useCallback(() => {
+    if (fallbackTimerRef.current !== undefined) {
+      window.clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = undefined;
+    }
   }, []);
 
   /**
@@ -113,13 +123,16 @@ export function useNewbornBeddingDemo(): NewbornBeddingDemo {
    * @param options.fallback 是否标记为"回退快照"（用于 UI 提示）
    */
   const loadSnapshot = useCallback(
-    async (id: string, options: { fallback?: boolean } = {}): Promise<void> => {
+    async (
+      id: string,
+      options: { fallback?: boolean } = {},
+    ): Promise<TransactionSnapshot | undefined> => {
       try {
         const response = await fetch(`/api/transactions/${id}`);
-        if (!response.ok) return;
+        if (!response.ok) return undefined;
         const snapshot = (await response.json()) as TransactionSnapshot;
         // 快照回来时如果已切换到别的交易，直接丢弃，绝不污染新交易
-        if (transactionRef.current !== id) return;
+        if (transactionRef.current !== id) return undefined;
 
         setEvents((current) => mergeEvents(current, snapshot.events));
         setChainValid(snapshot.chainValid);
@@ -130,11 +143,42 @@ export function useNewbornBeddingDemo(): NewbornBeddingDemo {
         } else if (snapshot.status === "completed") {
           setPhase("completed");
         }
+        return snapshot;
       } catch {
-        // 快照拉取失败不致命：SSE 可能仍在推送，静默忽略
+        return undefined;
       }
     },
     [],
+  );
+
+  /**
+   * SSE 断线后的可靠回退：持续轮询交易快照，直到 completed/failed。
+   * 每次轮询都会合并真实后端事件；不会在前端生成任何伪事件。
+   */
+  const pollSnapshotUntilSettled = useCallback(
+    (id: string): void => {
+      stopFallbackPolling();
+
+      const poll = async (): Promise<void> => {
+        if (transactionRef.current !== id || settledRef.current) return;
+
+        const snapshot = await loadSnapshot(id, { fallback: true });
+        if (transactionRef.current !== id || settledRef.current) return;
+
+        if (snapshot?.status === "completed" || snapshot?.status === "failed") {
+          settledRef.current = true;
+          stopFallbackPolling();
+          return;
+        }
+
+        fallbackTimerRef.current = window.setTimeout(() => {
+          void poll();
+        }, 300);
+      };
+
+      void poll();
+    },
+    [loadSnapshot, stopFallbackPolling],
   );
 
   /**
@@ -164,6 +208,7 @@ export function useNewbornBeddingDemo(): NewbornBeddingDemo {
           // 回执到达 = 交易闭环：关闭 SSE，再拉一次最终快照拿 chainValid
           if (event.type === "receipt.issued" && !settledRef.current) {
             settledRef.current = true;
+            stopFallbackPolling();
             closeSource();
             void loadSnapshot(id);
             setPhase("completed");
@@ -176,10 +221,10 @@ export function useNewbornBeddingDemo(): NewbornBeddingDemo {
         if (settledRef.current) return;
         if (transactionRef.current !== id) return;
         closeSource();
-        void loadSnapshot(id, { fallback: true });
+        pollSnapshotUntilSettled(id);
       };
     },
-    [closeSource, loadSnapshot],
+    [closeSource, loadSnapshot, pollSnapshotUntilSettled, stopFallbackPolling],
   );
 
   /**
@@ -188,6 +233,7 @@ export function useNewbornBeddingDemo(): NewbornBeddingDemo {
    */
   const start = useCallback((): void => {
     closeSource();
+    stopFallbackPolling();
     settledRef.current = false;
     setEvents([]);
     setChainValid(undefined);
@@ -216,7 +262,7 @@ export function useNewbornBeddingDemo(): NewbornBeddingDemo {
         setError(cause instanceof Error ? cause.message : String(cause));
       }
     })();
-  }, [closeSource, connect]);
+  }, [closeSource, connect, stopFallbackPolling]);
 
   /** 重播：语义等同于重新 start（内部已清空旧交易并创建新交易）。 */
   const replay = useCallback((): void => {
@@ -226,6 +272,7 @@ export function useNewbornBeddingDemo(): NewbornBeddingDemo {
   /** 重置到 idle：关闭连接、清空全部交易状态，但保留已加载的场景。 */
   const reset = useCallback((): void => {
     closeSource();
+    stopFallbackPolling();
     settledRef.current = false;
     transactionRef.current = undefined;
     setTransactionId(undefined);
@@ -234,7 +281,7 @@ export function useNewbornBeddingDemo(): NewbornBeddingDemo {
     setError(undefined);
     setUsedSnapshotFallback(false);
     setPhase(scenario ? "idle" : "loading");
-  }, [closeSource, scenario]);
+  }, [closeSource, scenario, stopFallbackPolling]);
 
   // 初次挂载：加载静态场景。加载成功进入 idle；失败标记 offline。
   useEffect(() => {
@@ -257,6 +304,10 @@ export function useNewbornBeddingDemo(): NewbornBeddingDemo {
     // 卸载时取消并关闭连接，避免内存泄漏与串单
     return () => {
       cancelled = true;
+      if (fallbackTimerRef.current !== undefined) {
+        window.clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = undefined;
+      }
       sourceRef.current?.close();
       sourceRef.current = undefined;
     };
