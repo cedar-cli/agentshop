@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 node_modules
 dist
 dist-ssr
@@ -10,11 +9,3 @@ dist-ssr
 coverage/
 test-results/
 playwright-report/
-=======
-node_modules/
-dist/
-data/*.db
-data/*.db-*
-.env
-coverage/
->>>>>>> 9a1abc4c89e599c4f3c9ffe464e75ba6af24ebed
