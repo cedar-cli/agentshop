@@ -5,9 +5,12 @@ import {
   evidenceDocumentSchema,
   evidenceQuestionSchema,
   evidenceRequirementSchema,
+  evidenceRequestedSchema,
   evidenceSubmissionSchema,
   executableIntentSchema,
   liveReceiptSchema,
+  orderAuthorizedSchema,
+  sellerMatchedSchema,
   sellerScoreVectorSchema,
 } from "../src/protocol/schemas.js";
 
@@ -52,7 +55,7 @@ const validScoreVector = {
   trustScore: 91,
   deliveryConfidence: 84,
   priceFit: 79,
-  riskScore: 12,
+  riskScore: 0.12,
   totalScore: 86,
   rank: 1,
   stage: "scored" as const,
@@ -114,6 +117,14 @@ describe("executableIntentSchema", () => {
 
   it("rejects an empty evidence-requirement list", () => {
     const bad = { ...validIntent, evidenceRequirements: [] };
+    expect(executableIntentSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("rejects an auto-purchase limit above the intent budget", () => {
+    const bad = {
+      ...validIntent,
+      autoPurchasePolicy: { ...validPolicy, maxAutoSpendUsd: 181 },
+    };
     expect(executableIntentSchema.safeParse(bad).success).toBe(false);
   });
 });
@@ -212,6 +223,11 @@ describe("sellerScoreVectorSchema", () => {
     expect(sellerScoreVectorSchema.safeParse(bad).success).toBe(false);
   });
 
+  it("rejects a risk score outside 0-1", () => {
+    const bad = { ...validScoreVector, riskScore: 12 };
+    expect(sellerScoreVectorSchema.safeParse(bad).success).toBe(false);
+  });
+
   it("rejects a non-integer rank", () => {
     const bad = { ...validScoreVector, rank: 1.5 };
     expect(sellerScoreVectorSchema.safeParse(bad).success).toBe(false);
@@ -220,6 +236,72 @@ describe("sellerScoreVectorSchema", () => {
   it("rejects an unknown stage", () => {
     const bad = { ...validScoreVector, stage: "pending" };
     expect(sellerScoreVectorSchema.safeParse(bad).success).toBe(false);
+  });
+});
+
+describe("sellerMatchedSchema", () => {
+  const validMatch = {
+    intentId: "intent-1",
+    sellerId: "seller-c",
+    matchScore: 88,
+    reason: "Verified materials and three-day delivery",
+  };
+
+  it("accepts a well-formed seller match", () => {
+    expect(sellerMatchedSchema.parse(validMatch)).toEqual(validMatch);
+  });
+
+  it("rejects a match score above 100", () => {
+    const bad = { ...validMatch, matchScore: 101 };
+    expect(sellerMatchedSchema.safeParse(bad).success).toBe(false);
+  });
+});
+
+describe("evidenceRequestedSchema", () => {
+  const validRequest = {
+    intentId: "intent-1",
+    sellerId: "seller-c",
+    requirements: [validRequirement],
+    questions: [
+      {
+        id: "q-delivery",
+        prompt: "Can you guarantee delivery within three days?",
+        expectedAnswer: "boolean" as const,
+      },
+    ],
+  };
+
+  it("accepts a well-formed evidence request", () => {
+    expect(evidenceRequestedSchema.parse(validRequest)).toEqual(validRequest);
+  });
+
+  it("rejects a request with an invalid nested question", () => {
+    const bad = {
+      ...validRequest,
+      questions: [{ ...validRequest.questions[0], expectedAnswer: "date" }],
+    };
+    expect(evidenceRequestedSchema.safeParse(bad).success).toBe(false);
+  });
+});
+
+describe("orderAuthorizedSchema", () => {
+  const validAuthorization = {
+    intentId: "intent-1",
+    sellerId: "seller-c",
+    authorizedAmountUsd: 164,
+    scoreSnapshot: validScoreVector,
+    autoApproved: true,
+  };
+
+  it("accepts a well-formed order authorization", () => {
+    expect(orderAuthorizedSchema.parse(validAuthorization)).toEqual(
+      validAuthorization,
+    );
+  });
+
+  it("rejects a non-positive authorized amount", () => {
+    const bad = { ...validAuthorization, authorizedAmountUsd: 0 };
+    expect(orderAuthorizedSchema.safeParse(bad).success).toBe(false);
   });
 });
 

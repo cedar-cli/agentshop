@@ -209,7 +209,8 @@ export interface EvidenceSubmission {
 
 /**
  * 卖家评分向量：卖家在某意图下经匹配与询证后得到的动态多维评分。
- * 各分项均归一到 0-100，totalScore 为加权综合分，rank/stage 反映其在候选池中的位次与阶段。
+ * 除 riskScore 使用 0-1 风险概率外，其余评分项均归一到 0-100；
+ * totalScore 为加权综合分，rank/stage 反映其在候选池中的位次与阶段。
  */
 export interface SellerScoreVector {
   // 被评分的卖家 id
@@ -222,7 +223,7 @@ export interface SellerScoreVector {
   deliveryConfidence: number;
   // 价格契合度：报价相对预算的合理性（0-100，越贴近预算且不超支越高）
   priceFit: number;
-  // 风险分：综合不可接受项命中与证据缺口估算（0-100，越高越危险）
+  // 风险分：综合不可接受项命中与证据缺口估算（0-1，越高越危险）
   riskScore: number;
   // 综合总分（0-100），由上述分项加权得到
   totalScore: number;

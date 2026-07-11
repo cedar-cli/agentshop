@@ -92,16 +92,26 @@ export const autoPurchasePolicySchema = z.object({
 });
 
 // 可执行意图：预算/交期为正、风险阈值落在 0-1、至少一条证据要求
-export const executableIntentSchema = z.object({
-  intentId: z.string().min(1),
-  productDescription: z.string().min(1).max(240),
-  budgetUsd: z.number().positive(),
-  deadlineHours: z.number().positive(),
-  riskThreshold: z.number().min(0).max(1),
-  unacceptable: z.array(z.string().min(1)),
-  evidenceRequirements: z.array(evidenceRequirementSchema).min(1),
-  autoPurchasePolicy: autoPurchasePolicySchema,
-});
+export const executableIntentSchema = z
+  .object({
+    intentId: z.string().min(1),
+    productDescription: z.string().min(1).max(240),
+    budgetUsd: z.number().positive(),
+    deadlineHours: z.number().positive(),
+    riskThreshold: z.number().min(0).max(1),
+    unacceptable: z.array(z.string().min(1)),
+    evidenceRequirements: z.array(evidenceRequirementSchema).min(1),
+    autoPurchasePolicy: autoPurchasePolicySchema,
+  })
+  .superRefine((intent, context) => {
+    if (intent.autoPurchasePolicy.maxAutoSpendUsd > intent.budgetUsd) {
+      context.addIssue({
+        code: "custom",
+        path: ["autoPurchasePolicy", "maxAutoSpendUsd"],
+        message: "Auto-purchase limit cannot exceed the intent budget",
+      });
+    }
+  });
 
 // 证据文档：回指的要求 id、标题、地址与内容哈希均非空
 export const evidenceDocumentSchema = z.object({
@@ -126,14 +136,14 @@ export const evidenceSubmissionSchema = z.object({
   answers: z.record(z.string().min(1), z.string()),
 });
 
-// 卖家评分向量：各分项限定在 0-100，排名为正整数，阶段为固定枚举
+// 卖家评分向量：风险分限定在 0-1，其余分项限定在 0-100
 export const sellerScoreVectorSchema = z.object({
   sellerId: z.string().min(1),
   matchScore: z.number().min(0).max(100),
   trustScore: z.number().min(0).max(100),
   deliveryConfidence: z.number().min(0).max(100),
   priceFit: z.number().min(0).max(100),
-  riskScore: z.number().min(0).max(100),
+  riskScore: z.number().min(0).max(1),
   totalScore: z.number().min(0).max(100),
   rank: z.number().int().positive(),
   stage: z.enum([
