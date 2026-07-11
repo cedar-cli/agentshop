@@ -1,0 +1,41 @@
+.radar {
+  overflow: visible;
+}
+
+.radar-ring {
+  fill: none;
+  stroke: var(--color-grid);
+  stroke-width: 1;
+}
+
+.radar-axis {
+  stroke: var(--color-grid);
+  stroke-width: 1;
+}
+
+.radar-shape {
+  fill: var(--color-data-soft);
+  stroke: var(--color-data);
+  stroke-width: 2;
+  transition:
+    all var(--dur-normal) var(--ease-out-expo);
+}
+
+.radar-compare {
+  fill: var(--color-proposal-soft);
+  stroke: var(--color-proposal);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  transition: all var(--dur-normal) var(--ease-out-expo);
+}
+
+.radar-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--color-text-faint);
+}
+
+.radar-label.hot {
+  fill: var(--color-proposal);
+  font-weight: 600;
+}

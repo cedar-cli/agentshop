@@ -1,0 +1,125 @@
+/* ============================================================
+   设计令牌 · ORION 淡紫数据仪表盘风格
+   浅色晨光画布 + 悬浮白卡 + 多彩数据可视化 + 紫色主色
+   ============================================================ */
+
+:root {
+  /* ---------- 画布与表面（淡紫近白 + 悬浮白卡，分层） ---------- */
+  --color-void: oklch(97% 0.012 300);          /* 页面画布：淡紫近白（亦作亮色按钮上的对比文字） */
+  --color-canvas-tint: oklch(93% 0.035 330);   /* 中心柔光偏粉紫 */
+  --color-surface-0: oklch(100% 0 0);          /* 基础白卡 */
+  --color-surface-1: oklch(98.2% 0.006 300);   /* 浅灰紫内嵌 */
+  --color-surface-2: oklch(96% 0.012 300);     /* 更深内嵌 / 悬浮 */
+  --color-surface-glass: oklch(100% 0 0 / 0.74);
+
+  /* ---------- 边框与分隔 ---------- */
+  --color-border: oklch(92.5% 0.008 300);
+  --color-border-strong: oklch(88% 0.014 300);
+  --color-grid: oklch(80% 0.02 300 / 0.55);
+
+  /* ---------- 文字（深靛蓝） ---------- */
+  --color-text: oklch(32% 0.06 285);
+  --color-text-dim: oklch(52% 0.035 285);
+  --color-text-faint: oklch(66% 0.025 285);
+
+  /* ---------- 语义色（信用/交易语言） ---------- */
+  --color-fulfil: oklch(62% 0.16 158);         /* 履约绿 / 上涨 */
+  --color-fulfil-soft: oklch(62% 0.16 158 / 0.14);
+  --color-breach: oklch(60% 0.22 22);          /* 违约红 / 下跌 / 风控 */
+  --color-breach-soft: oklch(60% 0.22 22 / 0.12);
+  --color-proposal: oklch(67% 0.17 55);        /* 提案橙金：竞价光箭 */
+  --color-proposal-soft: oklch(67% 0.17 55 / 0.14);
+  --color-data: oklch(58% 0.18 255);           /* 数据蓝：中性链路 */
+  --color-data-soft: oklch(58% 0.18 255 / 0.12);
+  --color-verify: oklch(56% 0.21 292);         /* 专业鉴证紫 */
+  --color-verify-soft: oklch(56% 0.21 292 / 0.12);
+
+  /* ---------- 主色 & 品牌渐变 ---------- */
+  --color-primary: oklch(56% 0.22 292);
+  --color-primary-strong: oklch(49% 0.24 292);
+  --color-accent-pink: oklch(66% 0.21 350);
+  --gradient-primary: linear-gradient(
+    135deg,
+    oklch(67% 0.21 350),
+    oklch(56% 0.22 292)
+  );
+  --gradient-brand: conic-gradient(
+    from 210deg,
+    var(--color-data),
+    var(--color-verify),
+    var(--color-accent-pink),
+    var(--color-proposal),
+    var(--color-data)
+  );
+
+  /* 品类活跃度分层底色（浅紫 → 蓝） */
+  --color-heat-low: oklch(95% 0.02 300);
+  --color-heat-mid: oklch(87% 0.07 288);
+  --color-heat-high: oklch(76% 0.13 282);
+
+  /* 角色色：买家 / 卖家 / 供应链 / 工厂 */
+  --color-consumer: oklch(58% 0.18 255);
+  --color-seller: oklch(67% 0.17 55);
+  --color-supply: oklch(56% 0.21 292);
+  --color-factory: oklch(62% 0.16 30);
+
+  /* ---------- 排版 ---------- */
+  --font-display: 'Plus Jakarta Sans', 'Space Grotesk', system-ui, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI',
+    'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace,
+    'SF Mono', 'Cascadia Code', monospace;
+
+  --text-xs: 0.6875rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.5rem;
+  --text-xl: 2.25rem;
+  --text-hero: 3.5rem;
+
+  --tracking-wide: 0;
+  --tracking-wider: 0;
+
+  /* ---------- 间距（非均匀节奏） ---------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+  --space-section: clamp(2rem, 1.5rem + 3vw, 5rem);
+
+  /* ---------- 圆角（更圆润，贴合白卡语言） ---------- */
+  --radius-xs: 5px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
+
+  /* ---------- 阴影与柔光（柔和淡紫，适配浅底） ---------- */
+  --shadow-panel: 0 12px 32px -10px oklch(50% 0.09 292 / 0.16),
+    0 2px 6px -2px oklch(50% 0.08 292 / 0.08);
+  --shadow-float: 0 24px 60px -14px oklch(50% 0.11 292 / 0.26),
+    0 4px 12px -4px oklch(50% 0.08 292 / 0.12);
+  --glow-fulfil: 0 3px 14px oklch(62% 0.16 158 / 0.42);
+  --glow-breach: 0 3px 14px oklch(60% 0.22 22 / 0.42);
+  --glow-proposal: 0 3px 14px oklch(67% 0.17 55 / 0.44);
+  --glow-data: 0 3px 16px oklch(58% 0.18 255 / 0.42);
+
+  /* ---------- 动效 ---------- */
+  --dur-fast: 150ms;
+  --dur-normal: 280ms;
+  --dur-slow: 520ms;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ---------- 层级 ---------- */
+  --z-canvas: 1;
+  --z-overlay: 10;
+  --z-topbar: 100;
+  --z-tooltip: 200;
+  --z-modal: 300;
+}

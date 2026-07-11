@@ -1,0 +1,82 @@
+.topo-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background:
+    radial-gradient(
+      circle at 62% 46%,
+      oklch(100% 0 0) 0%,
+      oklch(98% 0.012 320) 34%,
+      oklch(96% 0.02 300) 72%
+    );
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-panel);
+}
+
+.topo-canvas canvas {
+  display: block;
+  cursor: crosshair;
+}
+
+.topo-tip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--color-surface-glass);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  min-width: 150px;
+  z-index: var(--z-tooltip);
+  box-shadow: var(--shadow-float);
+  animation: tip-in var(--dur-fast) var(--ease-out-expo);
+}
+@keyframes tip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.tt-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  margin-bottom: 4px;
+}
+.tt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-dim);
+  margin-bottom: 4px;
+}
+.tt-credit {
+  font-size: var(--text-xs);
+  color: var(--color-text-dim);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.tt-credit b {
+  color: var(--color-fulfil);
+}
+.tt-flag {
+  color: var(--color-breach);
+  border: 1px solid var(--color-breach);
+  border-radius: var(--radius-pill);
+  padding: 0 6px;
+  font-size: 10px;
+}
+.tt-pro {
+  color: var(--color-verify);
+  border: 1px solid var(--color-verify);
+  border-radius: var(--radius-pill);
+  padding: 0 6px;
+  font-size: 10px;
+}

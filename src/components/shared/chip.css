@@ -1,0 +1,81 @@
+.att-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-1);
+  font-size: var(--text-xs);
+  color: var(--color-text-dim);
+  transition:
+    transform var(--dur-fast) var(--ease-out-expo),
+    border-color var(--dur-fast);
+  animation: chip-in var(--dur-slow) var(--ease-spring);
+}
+
+.att-chip:hover {
+  transform: translateX(-3px);
+  border-color: var(--color-text-faint);
+}
+
+.att-chip .chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.att-chip.fulfil .chip-dot {
+  background: var(--color-fulfil);
+  box-shadow: var(--glow-fulfil);
+}
+.att-chip.breach .chip-dot {
+  background: var(--color-breach);
+  box-shadow: var(--glow-breach);
+}
+
+.att-chip.fulfil .chip-score {
+  color: var(--color-fulfil);
+}
+.att-chip.breach .chip-score {
+  color: var(--color-breach);
+}
+
+.att-chip .chip-score {
+  font-weight: 600;
+}
+
+.att-chip .chip-cat {
+  color: var(--color-text-dim);
+}
+
+.att-chip .chip-weight {
+  margin-left: auto;
+  color: var(--color-text-faint);
+  font-size: 10px;
+}
+
+.att-chip.pro {
+  border-color: var(--color-verify);
+  box-shadow: 0 0 0 1px var(--color-verify-soft);
+}
+.att-chip.pro .chip-weight {
+  color: var(--color-verify);
+}
+
+.att-chip.compact {
+  padding: 3px 7px;
+  gap: 5px;
+}
+
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}

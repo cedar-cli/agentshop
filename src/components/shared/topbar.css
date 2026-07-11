@@ -1,0 +1,232 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-surface-glass);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--color-border);
+  flex: none;
+  z-index: var(--z-topbar);
+}
+
+.tb-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 220px;
+}
+.tb-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-pill);
+  background: var(--gradient-brand);
+  box-shadow: 0 3px 14px oklch(56% 0.21 292 / 0.4);
+  position: relative;
+  flex: none;
+}
+.tb-logo::after {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-0);
+}
+.tb-name {
+  font-size: var(--text-md);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.tb-tag {
+  font-size: 10px;
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
+}
+
+.tb-nav {
+  display: flex;
+  gap: var(--space-2);
+  flex: 1;
+  justify-content: center;
+}
+.tb-tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-3) var(--space-5) calc(var(--space-3) + 3px);
+  border-radius: var(--radius-md);
+  transition:
+    color var(--dur-fast),
+    transform var(--dur-fast) var(--ease-out-expo);
+}
+/* 当前项：ORION 式底部下划线指示 */
+.tb-tab::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -1px;
+  width: 0;
+  height: 2.5px;
+  border-radius: var(--radius-pill);
+  background: var(--gradient-primary);
+  transform: translateX(-50%);
+  transition: width var(--dur-normal) var(--ease-out-expo);
+}
+.tb-tab:hover {
+  transform: translateY(-1px);
+}
+.tb-tab.on::after {
+  width: calc(100% - var(--space-6));
+}
+.tb-tab-label {
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+.tb-tab.on .tb-tab-label {
+  color: var(--color-text);
+}
+.tb-tab:not(.on) .tb-tab-label {
+  color: var(--color-text-faint);
+}
+.tb-tab:not(.on):hover .tb-tab-label {
+  color: var(--color-text-dim);
+}
+.tb-tab-sub {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--color-text-faint);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tb-clock {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 220px;
+  justify-content: flex-end;
+}
+.tb-tick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.1;
+}
+.tb-tickval {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-primary);
+}
+.tb-agents {
+  font-size: 10px;
+  color: var(--color-text-faint);
+}
+
+.tb-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-0);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-dim);
+  font-size: var(--text-sm);
+  display: grid;
+  place-items: center;
+  transition: all var(--dur-fast);
+}
+.tb-btn:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  box-shadow: var(--glow-data);
+}
+.tb-btn.live {
+  color: var(--color-surface-0);
+  background: var(--color-fulfil);
+  border-color: var(--color-fulfil);
+  box-shadow: var(--glow-fulfil);
+}
+.tb-btn.live:hover {
+  color: var(--color-surface-0);
+}
+.tb-btn.ghost {
+  background: transparent;
+}
+
+.tb-speed {
+  display: flex;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  padding: 3px;
+  gap: 2px;
+}
+.tb-speed button {
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  transition: all var(--dur-fast);
+}
+.tb-speed button.on {
+  background: var(--gradient-primary);
+  color: var(--color-surface-0);
+  font-weight: 600;
+  box-shadow: var(--glow-data);
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .tb-brand,
+  .tb-clock {
+    min-width: 0;
+  }
+
+  .tb-tag,
+  .tb-tick,
+  .tb-agents,
+  .tb-speed {
+    display: none;
+  }
+
+  .tb-nav {
+    gap: 2px;
+  }
+
+  .tb-tab {
+    padding: 6px 12px 9px;
+  }
+
+  .tb-tab-label {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  .tb-logo {
+    width: 28px;
+    height: 28px;
+  }
+  .tb-logo::after {
+    inset: 7px;
+  }
+
+  .tb-name {
+    font-size: 12px;
+  }
+
+  .tb-tab-sub,
+  .tb-clock {
+    display: none;
+  }
+
+  .tb-tab {
+    padding: 6px 9px 9px;
+  }
+}

@@ -1,0 +1,352 @@
+/* ============================================================
+   生态演化 · 事件驱动交易模拟
+   顶部控制 + 时间轴 + 三区（交易流 / 竞速榜 / 诊断报告）
+   ============================================================ */
+
+.eco {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ---------- 顶部 ---------- */
+.eco-head {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px 16px;
+}
+.eco-title h3 { margin: 2px 0 0; font-size: 15px; }
+
+.eco-cats {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--color-surface-1);
+  border-radius: var(--radius-pill);
+}
+.eco-cats button {
+  padding: 5px 11px;
+  color: var(--color-text-dim);
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  transition: all var(--dur-fast) var(--ease-out-expo);
+}
+.eco-cats button.on { color: var(--color-void); background: var(--color-primary); }
+
+.eco-controls { display: flex; align-items: center; gap: 6px; }
+.eco-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  color: var(--color-void);
+  background: var(--color-primary-strong);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  transition: all var(--dur-fast) var(--ease-out-expo);
+}
+.eco-play:hover { transform: translateY(-1px); box-shadow: var(--shadow-float); }
+.eco-speed {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--color-surface-1);
+  border-radius: var(--radius-pill);
+}
+.eco-speed button { padding: 4px 8px; color: var(--color-text-dim); border-radius: var(--radius-pill); font-size: 10px; }
+.eco-speed button.on { color: var(--color-void); background: var(--color-data); }
+.eco-reset {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 30px;
+  color: var(--color-text-dim);
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+/* ---------- 时间轴 ---------- */
+.eco-timeline {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 14px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+.eco-day { font-size: 16px; font-weight: 700; color: var(--color-primary); min-width: 92px; }
+.eco-progress { height: 6px; background: var(--color-surface-2); border-radius: var(--radius-pill); overflow: hidden; }
+.eco-progress span { display: block; height: 100%; background: var(--gradient-primary); border-radius: var(--radius-pill); }
+.eco-summary { display: flex; gap: 12px; font-size: 10px; }
+.eco-leader, .eco-wiped { display: inline-flex; align-items: center; gap: 4px; }
+.eco-leader { color: var(--color-fulfil); }
+.eco-wiped { color: var(--color-breach); }
+
+/* ---------- 三区主体 ---------- */
+.eco-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.eco-body > section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px;
+  background: var(--color-surface-0);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+.eco-panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.eco-panel-title .num { color: var(--color-text-faint); font-size: 10px; }
+
+/* ---------- 左：交易流 ---------- */
+.eco-stream { overflow: hidden; }
+.eco-deals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  list-style: none;
+}
+.eco-deal-empty { color: var(--color-text-faint); font-size: 10px; line-height: 1.6; }
+.eco-deal {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 8px 10px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-left-width: 3px;
+  border-radius: 8px;
+  animation: eco-deal-in var(--dur-normal) var(--ease-out-expo);
+}
+.eco-deal.happy { border-left-color: var(--color-fulfil); }
+.eco-deal.unhappy { border-left-color: var(--color-breach); }
+.eco-deal.lost { border-left-color: var(--color-proposal); }
+.eco-deal-persona {
+  padding: 2px 7px;
+  color: var(--color-data);
+  background: var(--color-data-soft);
+  border-radius: var(--radius-pill);
+  font-size: 9px;
+}
+.eco-deal-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  justify-self: end;
+  font-size: 9px;
+}
+.eco-deal.happy .eco-deal-tag { color: var(--color-fulfil); }
+.eco-deal.unhappy .eco-deal-tag { color: var(--color-breach); }
+.eco-deal.lost .eco-deal-tag { color: var(--color-proposal); }
+.eco-deal-intent {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: var(--color-text-dim);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.eco-deal-flow {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--color-text);
+  font-size: 10px;
+}
+@keyframes eco-deal-in {
+  0% { transform: translateX(-8px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+/* ---------- 中：竞速榜 ---------- */
+.eco-race-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+.eco-row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  grid-template-areas:
+    'rank name arche'
+    'rank bar credit';
+  align-items: center;
+  gap: 2px 9px;
+  width: 100%;
+  padding: 8px 11px;
+  text-align: left;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  transition: all var(--dur-normal) var(--ease-out-expo);
+}
+.eco-row:hover { border-color: var(--color-border-strong); }
+.eco-row.selected { border-color: var(--color-primary); box-shadow: var(--glow-data); }
+.eco-rank {
+  grid-area: rank;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-dim);
+  background: var(--color-surface-2);
+  border-radius: 50%;
+  font-size: 10px;
+}
+.eco-name {
+  grid-area: name;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.eco-arche {
+  grid-area: arche;
+  color: var(--color-text-faint);
+  font-size: 8px;
+}
+.eco-bar-track {
+  grid-area: bar;
+  height: 8px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.eco-bar {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width var(--dur-slow) var(--ease-out-expo), background var(--dur-slow);
+}
+.eco-credit { grid-area: credit; font-size: 12px; color: var(--color-text); text-align: right; }
+
+.eco-row.up .eco-bar { background: var(--color-fulfil); }
+.eco-row.down .eco-bar { background: var(--color-proposal); }
+.eco-row.flagged { opacity: 0.5; filter: grayscale(0.5); }
+.eco-row.flagged .eco-bar { background: var(--color-breach); }
+.eco-row.flagged .eco-credit { color: var(--color-breach); }
+.eco-row.leader { border-color: var(--color-fulfil); }
+.eco-row.leader .eco-rank { color: var(--color-void); background: var(--color-fulfil); }
+
+/* ---------- 右：诊断报告 ---------- */
+.eco-report { overflow-y: auto; }
+.eco-arche-badge {
+  padding: 2px 8px;
+  color: var(--color-verify);
+  background: var(--color-verify-soft);
+  border-radius: var(--radius-pill);
+  font-size: 9px;
+}
+.eco-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.eco-kpi {
+  padding: 9px 8px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  text-align: center;
+}
+.eco-kpi b {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 15px;
+  color: var(--color-text);
+}
+.eco-kpi span { display: block; margin-top: 3px; color: var(--color-text-faint); font-size: 8px; }
+
+.eco-attr { margin-top: 14px; }
+.eco-attr-none {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 10px;
+  color: var(--color-fulfil);
+  background: var(--color-fulfil-soft);
+  border-radius: 8px;
+  font-size: 10px;
+}
+.eco-attr-bars { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.eco-attr-row {
+  display: grid;
+  grid-template-columns: 74px 1fr 22px;
+  align-items: center;
+  gap: 8px;
+}
+.eco-attr-label { display: inline-flex; align-items: center; gap: 4px; color: var(--color-text-dim); font-size: 10px; }
+.eco-attr-track { height: 8px; background: var(--color-surface-2); border-radius: var(--radius-pill); overflow: hidden; }
+.eco-attr-track i { display: block; height: 100%; background: var(--color-breach); border-radius: var(--radius-pill); transition: width var(--dur-normal); }
+.eco-attr-count { color: var(--color-text-dim); font-size: 10px; text-align: right; }
+.eco-attr-row.top .eco-attr-label { color: var(--color-breach); font-weight: 600; }
+.eco-attr-row.top .eco-attr-track i { box-shadow: var(--glow-breach); }
+
+.eco-report-summary {
+  margin: 14px 0 0;
+  color: var(--color-text-dim);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.eco-advice {
+  display: flex;
+  gap: 9px;
+  margin-top: 12px;
+  padding: 11px;
+  background: linear-gradient(120deg, var(--color-proposal-soft), var(--color-surface-1) 80%);
+  border: 1px solid var(--color-proposal);
+  border-radius: 10px;
+}
+.eco-advice-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--color-void);
+  background: var(--color-proposal);
+  border-radius: 8px;
+}
+.eco-advice p { margin: 4px 0 0; color: var(--color-text); font-size: 11px; line-height: 1.55; }
+
+.eco-report-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  color: var(--color-text-faint);
+  font-size: 11px;
+}
+
+.eco-foot { margin: 0; color: var(--color-text-dim); font-size: 10px; line-height: 1.6; }
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 1180px) {
+  .eco-body { grid-template-columns: 1fr 1fr; }
+  .eco-report { grid-column: 1 / -1; }
+}
+@media (max-width: 760px) {
+  .eco-head { grid-template-columns: 1fr; }
+  .eco-body { grid-template-columns: 1fr; overflow-y: auto; }
+  .eco-body > section { min-height: 240px; }
+}
