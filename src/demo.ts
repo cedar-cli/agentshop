@@ -17,6 +17,14 @@ const labels: Record<AgentEventType, string> = {
   "counter.offer": "买家发起还价",
   "counter.response": "商家应答还价",
   "order.confirmed": "订单确认",
+  // 以下为新增协议事件的展示标签，仅补齐类型完整性；当前 demo 流程不会产生这些事件
+  "intent.published": "买家发布可执行意图",
+  "seller.matched": "系统匹配候选商家",
+  "evidence.requested": "买家发起证据询证",
+  "evidence.submitted": "商家提交证据作答",
+  "seller.score.updated": "更新商家评分向量",
+  "order.authorized": "买家授权自动下单",
+  "receipt.issued": "平台签发实时回执",
 };
 
 mkdirSync("data", { recursive: true });
