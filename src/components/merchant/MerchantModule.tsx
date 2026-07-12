@@ -1,4 +1,4 @@
-import { Activity, Bot, History, Network, ShieldCheck, SlidersHorizontal, UsersRound } from 'lucide-react'
+import { Activity, Bot, BrainCircuit, History, Network, Route, ShieldCheck, SlidersHorizontal, UsersRound } from 'lucide-react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useWorld } from '../../core/store'
@@ -9,13 +9,19 @@ import { MerchantTopology } from './MerchantTopology'
 import { CreditTree } from './CreditTree'
 import { StrategySandbox } from './StrategySandbox'
 import { EcoTimelapse } from './EcoTimelapse'
+import { ActiveSalesRouter } from './ActiveSalesRouter'
+import { DemandNetwork } from './DemandNetwork'
+import { IntentGrowthField } from './IntentGrowthField'
 import './merchant.css'
 
-type MerchantView = 'deals' | 'mechanisms' | 'operations'
+type MerchantView = 'deals' | 'demand-network' | 'active-sales' | 'intent-growth' | 'mechanisms' | 'operations'
 type OperationView = 'fleet' | 'topology' | 'credit' | 'sandbox' | 'eco'
 
 const VIEWS = [
   { key: 'deals' as const, label: '交易战情', icon: Activity },
+  { key: 'demand-network' as const, label: '需求网络', icon: Network },
+  { key: 'active-sales' as const, label: '主动销售', icon: Route },
+  { key: 'intent-growth' as const, label: '意图增长', icon: BrainCircuit },
   { key: 'mechanisms' as const, label: '销售机制', icon: Network },
   { key: 'operations' as const, label: '编队与履约', icon: UsersRound },
 ]
@@ -57,6 +63,9 @@ export function MerchantModule() {
 
       <div className="merchant-stage panel">
         {view === 'deals' && <MerchantDealRoom />}
+        {view === 'demand-network' && <DemandNetwork />}
+        {view === 'active-sales' && <ActiveSalesRouter />}
+        {view === 'intent-growth' && <IntentGrowthField />}
         {view === 'mechanisms' && <SalesMechanismLab />}
         {view === 'operations' && (
           <div className="merchant-operations">

@@ -348,6 +348,8 @@ describe("newborn bedding A2A workflow · rejection paths", () => {
           intentId: "intent-newborn-bedding",
           documents: [],
           answers: {},
+          // 协议要求携带生成来源标记；伪造提交按规则兜底标注，断言（不派生评分/授权）不变
+          generatedBy: "fallback",
         },
       });
     }

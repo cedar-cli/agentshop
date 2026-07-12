@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test'
 
+test('轻薄本案例在购买历史原位提供实时执行入口', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: '出差轻薄本采购' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '运行真实 LLM' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /实时采购/ })).toHaveCount(0)
+})
+
 test('消费者端覆盖会话、主动服务与 Inbox', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: '我的消费 Agent' })).toBeVisible()
@@ -7,9 +14,21 @@ test('消费者端覆盖会话、主动服务与 Inbox', async ({ page }) => {
   await page.getByRole('button', { name: /主动服务/ }).click()
   await expect(page.getByText('日用品补库')).toBeVisible()
   await expect(page.getByText('盯二手商品')).toBeVisible()
+  await expect(page.getByText('LIVE BACKEND')).toBeVisible()
+  await expect(page.getByText('FIXTURE')).toHaveCount(3)
   await page.getByRole('button', { name: /Inbox/ }).click()
+  await expect(page.getByText('LIVE API', { exact: true })).toBeVisible()
   await expect(page.getByText('Agent 评价')).toBeVisible()
   await expect(page.getByText('建议存入记忆')).toBeVisible()
+})
+
+test('家庭补库明确表达无人类采购指令', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /家庭日用品补库/ }).click()
+  await expect(page.getByText('AUTONOMOUS MODE')).toBeVisible()
+  await expect(page.getByRole('button', { name: '推进到库存触发点' })).toBeVisible()
+  await expect(page.getByRole('textbox', { name: '向消费 Agent 描述需求' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: '确认下单' })).toHaveCount(0)
 })
 
 test('假设时间机器：拖偏好后冠军翻盘', async ({ page, viewport }) => {
@@ -31,7 +50,7 @@ test('决策剧场：海选决出 3 家 + 议价擂台', async ({ page }) => {
   // 幕二：擂台
   await page.getByRole('button', { name: /幕二 · 擂台/ }).click()
   await expect(page.getByText('桌面价格')).toBeVisible()
-  await expect(page.getByText('我的 C-Agent')).toBeVisible()
+  await expect(page.locator('strong').filter({ hasText: '我的 C-Agent' })).toBeVisible()
 })
 
 test('生态演化：交易流驱动信誉 + 诊断建议', async ({ page }) => {
@@ -59,4 +78,22 @@ test('商家端覆盖买家回放与四种销售机制', async ({ page }) => {
   await expect(page.getByText('广播推销')).toBeVisible()
   await page.getByRole('button', { name: '运行机制演示' }).click()
   await expect(page.getByText(/已执行/)).toBeVisible()
+})
+
+test('意图增长：落选对话训练商品并在下一次竞争中升榜', async ({ page, viewport }) => {
+  const consoleErrors: string[] = []
+  page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()) })
+
+  await page.goto('/?module=merchant')
+  await page.getByRole('button', { name: /意图增长/ }).click()
+  await expect(page.getByText('商品能力从输掉的 Agent 交易中生长')).toBeVisible()
+  await page.getByRole('button', { name: '启动主动优化' }).click()
+  await expect(page.getByRole('button', { name: '重新训练' })).toBeVisible({ timeout: 30000 })
+  await expect(page.getByText('LumaCalm 可验证共享托育睡眠方案')).toBeVisible()
+  await expect(page.getByText('REPCHAIN ATTESTED · +12 TRUST')).toBeVisible()
+  await expect(page.getByText('闭环完成 · 每笔订单开始下一轮学习')).toBeVisible()
+  await expect(page.getByText('$8,960').first()).toBeVisible()
+  await expect(page.getByText('#1').first()).toBeVisible()
+  await page.screenshot({ path: `test-results/intent-growth-${(viewport?.width ?? 0) < 980 ? 'mobile' : 'desktop'}.png`, fullPage: true })
+  expect(consoleErrors).toEqual([])
 })

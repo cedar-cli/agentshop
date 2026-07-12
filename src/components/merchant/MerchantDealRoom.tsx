@@ -9,27 +9,40 @@ import {
   TrendingUp,
   UserRound,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { DEMO_PURCHASES, getPurchaseById, type DemoEvent } from '../../demo/demoData'
+import { adaptMerchantTransaction } from '../../demo/merchantRuntime'
+import { useMerchantTransactions } from '../../hooks/useMerchantTransactions'
 import { ReplayControls, useReplay } from '../shared/ReplayControls'
 
 export function MerchantDealRoom() {
+  const live = useMerchantTransactions()
   const [selectedId, setSelectedId] = useState(DEMO_PURCHASES[0].id)
-  const purchase = getPurchaseById(selectedId) ?? DEMO_PURCHASES[0]
+  const livePurchases = useMemo(() => live.transactions.map(adaptMerchantTransaction), [live.transactions])
+  const purchases = useMemo(() => [...livePurchases, ...DEMO_PURCHASES], [livePurchases])
+  const latestLiveId = useRef<string>()
+  useEffect(() => {
+    const newest = livePurchases[0]?.id
+    if (newest && newest !== latestLiveId.current) {
+      latestLiveId.current = newest
+      setSelectedId(newest)
+    }
+  }, [livePurchases])
+  const purchase = purchases.find((item) => item.id === selectedId) ?? getPurchaseById(selectedId) ?? purchases[0] ?? DEMO_PURCHASES[0]
   const replay = useReplay(purchase.id, purchase.events.length)
   const visibleEvents = purchase.events.slice(0, replay.cursor)
   const winner = purchase.offers.find((offer) => offer.selected)!
-  const won = purchase.merchantName.includes('云仓')
+  const won = Boolean(winner?.selected)
 
   return (
     <div className="deal-room">
       <aside className="buyer-records">
         <header>
           <div><span className="eyebrow">实时 + 全量留档</span><h3>历史买家记录</h3></div>
-          <span className="live-count"><i />18 live</span>
+          <span className="live-count"><i />{live.apiOnline ? `${live.transactions.length} LIVE API` : 'FIXTURE'}</span>
         </header>
         <div className="buyer-record-list">
-          {DEMO_PURCHASES.map((record) => (
+          {purchases.map((record) => (
             <button type="button" key={record.id} className={record.id === purchase.id ? 'on' : ''} onClick={() => setSelectedId(record.id)}>
               <span className="buyer-avatar"><Bot size={15} /></span>
               <span className="buyer-record-copy">

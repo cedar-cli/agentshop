@@ -11,6 +11,37 @@ afterEach(() => {
 });
 
 describe("transaction API", () => {
+  it("exposes non-sensitive LLM runtime metadata", async () => {
+    const service = new TransactionService({
+      databaseFilename: ":memory:",
+      proposalGenerator: {
+        async generate(profile, request) {
+          return createFallbackProposal(profile, request);
+        },
+      },
+    });
+    services.push(service);
+    const app = buildApp(service, {
+      runtimeInfo: {
+        model: "gpt-5.6-luna",
+        llmConfigured: true,
+        evidenceLlmEnabled: true,
+      },
+    });
+
+    const response = await app.inject({ method: "GET", url: "/api/runtime" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      model: "gpt-5.6-luna",
+      llmConfigured: true,
+      evidenceLlmEnabled: true,
+    });
+    expect(response.body).not.toContain("apiKey");
+
+    await app.close();
+  });
+
   it("creates a transaction and exposes its completed event history", async () => {
     const service = new TransactionService({
       databaseFilename: ":memory:",

@@ -272,6 +272,7 @@ describe("evidenceSubmissionSchema", () => {
       },
     ],
     answers: { "q-formaldehyde": "true" },
+    generatedBy: "fallback" as const,
   };
 
   it("accepts a well-formed submission", () => {
@@ -285,6 +286,11 @@ describe("evidenceSubmissionSchema", () => {
     expect(evidenceSubmissionSchema.parse(submission)).toEqual(submission);
   });
 
+  it("accepts an llm-generated submission", () => {
+    const submission = { ...validSubmission, generatedBy: "llm" as const };
+    expect(evidenceSubmissionSchema.parse(submission)).toEqual(submission);
+  });
+
   it("rejects a non-string answer value", () => {
     const bad = { ...validSubmission, answers: { "q-formaldehyde": true } };
     expect(evidenceSubmissionSchema.safeParse(bad).success).toBe(false);
@@ -292,6 +298,16 @@ describe("evidenceSubmissionSchema", () => {
 
   it("rejects a missing intentId", () => {
     const { intentId: _omit, ...bad } = validSubmission;
+    expect(evidenceSubmissionSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("rejects an illegal generatedBy value", () => {
+    const bad = { ...validSubmission, generatedBy: "human" };
+    expect(evidenceSubmissionSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("rejects a submission missing generatedBy", () => {
+    const { generatedBy: _omit, ...bad } = validSubmission;
     expect(evidenceSubmissionSchema.safeParse(bad).success).toBe(false);
   });
 });
