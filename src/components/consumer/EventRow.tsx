@@ -10,6 +10,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import type { DemoEvent } from '../../demo/demoData'
+import { openImageLightbox } from '../shared/ImageLightbox'
 
 export const KIND_ICON = {
   user: UserRound,
@@ -42,6 +43,27 @@ export function EventRow({ event, active }: { event: DemoEvent; active: boolean 
           <time className="num">{event.time}</time>
         </div>
         <p>{event.body}</p>
+        {event.images && event.images.length > 0 && (
+          // 真实商品检索命中：展示召回商品的真实缩略图，直观证明「真的搜到了真实商品」
+          <div className="event-thumbs">
+            {event.images.map((url, index) => (
+              <img
+                key={`${url}-${index}`}
+                className="event-thumb"
+                src={url}
+                alt="召回商品缩略图"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                // 点击缩略图放大查看
+                onClick={() => openImageLightbox(url, '召回商品')}
+                // 图片外链失败（防盗链/网络）时隐藏该缩略图，不留破图占位
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
+            ))}
+          </div>
+        )}
         {(event.evidence || event.impact) && (
           <div className="event-evidence">
             {event.evidence && <span><ShieldCheck size={12} />{event.evidence}</span>}

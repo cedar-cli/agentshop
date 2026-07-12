@@ -186,6 +186,8 @@ function fallbackProposal(seller: DelegationSellerFact): LaptopProposal {
     nationalWarranty: false,
     reputation: seller.reputation,
     metrics: seller.metrics,
+    // 带上真实商品图（空串时给 undefined，保持字段可选语义），供前端候选卡片展示
+    image: seller.image || undefined,
     reasoning: `${seller.displayName}：${seller.productTitle.slice(0, 24)} 按可履约价格与交期提交报价。`,
     generatedBy: "fallback",
     fallbackReason: "模型不可用，使用受约束的确定性报价",
@@ -273,6 +275,8 @@ export async function runDelegationPurchase(
         category: s.category,
         priceMin: s.minimumPriceCny,
         priceMax: s.listPriceCny,
+        // 带上真实商品首图，供前端在「搜索命中」这一步挂缩略图（回退卖家为空串）
+        image: s.image,
       })),
     },
   });

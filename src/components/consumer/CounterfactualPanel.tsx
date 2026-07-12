@@ -3,6 +3,7 @@ import { RotateCcw } from 'lucide-react'
 import type { DemoPurchase, OfferMetrics, OfferPreference } from '../../demo/demoData'
 import { PREF_DIMS, rankOffers } from '../../lib/counterfactual'
 import { yuan } from '../../lib/format'
+import { openImageLightbox } from '../shared/ImageLightbox'
 
 const PRESETS: Array<{ label: string; pref: OfferPreference }> = [
   { label: '最看重价格', pref: { timeliness: 10, spec: 10, price: 70, afterSales: 10 } },
@@ -117,6 +118,21 @@ export function CounterfactualPanel({ purchase }: { purchase: DemoPurchase }) {
               className={`cf-row ${isChampion ? 'champ' : ''}`}
             >
               <span className="cf-rank num">{index + 1}</span>
+              {item.offer.image && (
+                // 通用委托候选：展示真实商品图；外链失败时隐藏，不留破图
+                <img
+                  className="cf-thumb"
+                  src={item.offer.image}
+                  alt={item.offer.seller}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  // 点击商品图放大查看
+                  onClick={() => openImageLightbox(item.offer.image!, item.offer.seller)}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                  }}
+                />
+              )}
               <div className="cf-main">
                 <div className="cf-name-row">
                   <strong>{item.offer.seller}</strong>

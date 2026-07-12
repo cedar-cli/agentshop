@@ -48,6 +48,8 @@ export interface DemoOffer {
   reason: string
   /** 反事实推演用的底层维度分 */
   metrics: OfferMetrics
+  /** 商品首图 URL（可选）：通用委托候选带真实商品图；无图场景（如笔记本 demo）缺省 */
+  image?: string
 }
 
 export interface DemoEvent {
@@ -60,6 +62,8 @@ export interface DemoEvent {
   evidence?: string
   impact?: string
   origin?: 'llm' | 'rule' | 'simulation'
+  /** 商品缩略图 URL 列表（可选）：仅「真实商品检索命中」这一步用，展示召回的真实商品图 */
+  images?: string[]
 }
 
 export interface DemoPurchase {
