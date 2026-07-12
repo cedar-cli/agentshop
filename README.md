@@ -60,17 +60,42 @@ e2e/               Playwright 桌面与移动端关键路径
 | §6.7 四种销售机制 | 精准推销、合约分销、声誉排序、许可广播均展示内部过程和指标变化 |
 | 商家交易战情 | 买家 Agent 实时沟通与历史记录共用同一回放视图，可查看胜负依据和编队影响 |
 
+## 仓库结构（两套独立子项目）
+
+本仓库含两套**依赖互相冲突、各自独立**的子项目，各有自己的 `package.json` 与 `node_modules`：
+
+```
+/                 前端交互原型（React 18 + Vite 5 + Zustand）——本 README 主体
+├── src/          原型源码：core / components / demo / lib / styles
+├── index.html    Vite 入口
+└── server/       后端子项目（Fastify + OpenAI + better-sqlite3，React 19 + Vite 7）
+    ├── src/      server.ts / server / store / llm / agents / protocol / scenario / router
+    ├── package.json
+    └── tsconfig.json
+```
+
+> 两套 React/Vite 大版本不兼容，**不能共用一个 `node_modules`**，因此分目录、各自 `npm install`。前后端代码零交叉引用。
+
 ## 运行
 
+**前端原型（根目录）**：
 ```bash
 npm install
-npm run dev        # 开发服务器 http://localhost:5173
+npm run dev        # 开发服务器 http://localhost:5173（被占用则自动顺延 5174…）
 npm run build      # 生产构建（tsc 类型检查 + vite build）
 npm run preview    # 预览构建产物
 npm test           # 领域数据与组件行为测试
 npm run test:coverage # 覆盖率检查
 npm run test:e2e   # Playwright 桌面与移动端演示路径
 ```
+
+**后端子项目（`server/` 目录）**：
+```bash
+cd server
+npm install
+npm run dev        # tsx watch src/server.ts
+```
+> ⚠️ 后端目前是从合并中带入的**部分代码**，仍缺少 `src/config.ts` 等文件（`server.ts` 依赖它），需后端同学补齐后方能真正启动。前端不依赖后端，可独立运行。
 
 ## 技术栈
 
