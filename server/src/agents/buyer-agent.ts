@@ -10,7 +10,7 @@ import type {
 interface TransactionState {
   request?: PurchaseRequest;
   proposals: Proposal[];
-  // 选标后记住赢家提案，收到商家还价应答时据此确认订单
+  // 选标后记住赢家提案，收到卖家还价应答时据此确认订单
   winner?: Proposal;
 }
 
@@ -47,7 +47,7 @@ export class BuyerAgent implements AgentHandler {
   /**
    * 选出赢家后，不直接下单，而是先向赢家发起一轮还价。
    * 目标价：在赢家报价与市场次低价之间取更低的锚点再压 5%，但不低于赢家报价的 88%，
-   * 让谈判既有诚意又不离谱；同时把赢家提案记入 state，等商家应答后再确认。
+   * 让谈判既有诚意又不离谱；同时把赢家提案记入 state，等卖家应答后再确认。
    */
   private handleSellerSelected(
     event: AgentEvent<"seller.selected">,
@@ -89,8 +89,8 @@ export class BuyerAgent implements AgentHandler {
   }
 
   /**
-   * 收到商家对还价的应答后，按最终成交价确认订单。
-   * 无论商家是否让步，本轮谈判后都会以 finalPrice 成交（单轮砍价，不再往返）。
+   * 收到卖家对还价的应答后，按最终成交价确认订单。
+   * 无论卖家是否让步，本轮谈判后都会以 finalPrice 成交（单轮砍价，不再往返）。
    */
   private handleCounterResponse(
     event: AgentEvent<"counter.response">,

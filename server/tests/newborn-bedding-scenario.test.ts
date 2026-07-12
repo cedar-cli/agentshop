@@ -81,7 +81,9 @@ describe("seller pricing and delivery", () => {
     expect(b.initialPriceUsd).toBe(156);
     expect(b.deliveryHours).toBe(120);
     // 5 天 = 120h，超出意图的 72h 上限
-    expect(b.deliveryHours).toBeGreaterThan(createNewbornBeddingIntent().deadlineHours);
+    expect(b.deliveryHours).toBeGreaterThan(
+      createNewbornBeddingIntent().deadlineHours,
+    );
     expect(b.bundle).toBeNull();
   });
 

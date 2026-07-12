@@ -1,0 +1,456 @@
+/* ============================================================
+   买家 Agent 分析 · 意图 × 商品的推荐 / 决策漏斗
+   顶部控制 + 我方汇总 + 两区（意图榜单系列 / 商品意图排行榜）
+   ============================================================ */
+
+.baa {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ---------- 顶部 ---------- */
+.baa-head {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px 16px;
+}
+.baa-title .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.baa-title h3 {
+  margin: 3px 0 0;
+  font-size: 15px;
+}
+.baa-cats {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--color-surface-1);
+  border-radius: var(--radius-pill);
+}
+.baa-cats button {
+  padding: 5px 11px;
+  color: var(--color-text-dim);
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  transition: all var(--dur-fast) var(--ease-out-expo);
+}
+.baa-cats button.on {
+  color: var(--color-void);
+  background: var(--color-primary);
+}
+.baa-reseed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  color: var(--color-text-dim);
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  transition: all var(--dur-fast) var(--ease-out-expo);
+}
+.baa-reseed:hover {
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}
+
+/* ---------- 我方汇总 ---------- */
+.baa-summary {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+.baa-sum-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-left-width: 3px;
+  border-left-color: var(--color-border);
+  border-radius: 10px;
+}
+.baa-sum-card.rec {
+  border-left-color: var(--color-data);
+}
+.baa-sum-card.dec {
+  border-left-color: var(--color-fulfil);
+}
+.baa-sum-card.best {
+  border-left-color: var(--color-fulfil);
+}
+.baa-sum-card.worst {
+  border-left-color: var(--color-breach);
+}
+.baa-sum-label {
+  color: var(--color-text-faint);
+  font-size: 9px;
+}
+.baa-sum-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.1;
+}
+.baa-sum-card.best .baa-sum-value,
+.baa-sum-card.worst .baa-sum-value {
+  font-size: 14px;
+}
+.baa-sum-sub {
+  color: var(--color-text-faint);
+  font-size: 9px;
+}
+
+/* ---------- 两区主体 ---------- */
+.baa-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.baa-body > section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px;
+  background: var(--color-surface-0);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+.baa-panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.baa-panel-title .num {
+  color: var(--color-text-faint);
+  font-size: 10px;
+}
+
+/* ---------- 左：意图榜单系列 ---------- */
+.baa-intent-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 5px;
+  scrollbar-width: none;
+}
+.baa-intent-tabs::-webkit-scrollbar {
+  display: none;
+}
+.baa-intent-tabs button {
+  flex: none;
+  padding: 4px 10px;
+  color: var(--color-text-dim);
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  white-space: nowrap;
+  transition: all var(--dur-fast) var(--ease-out-expo);
+}
+.baa-intent-tabs button:hover {
+  border-color: var(--color-border-strong);
+}
+.baa-intent-tabs button.on {
+  color: var(--color-void);
+  background: var(--color-data);
+  border-color: transparent;
+}
+.baa-intent-hint {
+  margin: 8px 0 9px;
+  color: var(--color-text-faint);
+  font-size: 9px;
+}
+
+.baa-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+.baa-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1.4fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 11px;
+  text-align: left;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  transition: all var(--dur-normal) var(--ease-out-expo);
+}
+.baa-row:hover {
+  border-color: var(--color-border-strong);
+}
+.baa-row.sel {
+  border-color: var(--color-primary);
+  box-shadow: var(--glow-data);
+}
+.baa-row.mine {
+  background: var(--color-data-soft);
+}
+.baa-row.lead .baa-rank {
+  color: var(--color-void);
+  background: var(--color-fulfil);
+}
+.baa-rank {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-dim);
+  background: var(--color-surface-2);
+  border-radius: 50%;
+  font-size: 10px;
+}
+.baa-prod {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.baa-prod-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.baa-prod-seller {
+  color: var(--color-text-faint);
+  font-size: 9px;
+}
+.baa-mine-tag {
+  flex: none;
+  padding: 0 5px;
+  color: var(--color-void);
+  background: var(--color-data);
+  border-radius: var(--radius-pill);
+  font-size: 8px;
+  font-style: normal;
+}
+
+/* 双指标条：推荐 / 决策 */
+.baa-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.baa-ratebar {
+  display: grid;
+  grid-template-columns: 22px 1fr 30px;
+  align-items: center;
+  gap: 6px;
+}
+.baa-ratebar-label {
+  color: var(--color-text-faint);
+  font-size: 8px;
+}
+.baa-ratebar-track {
+  height: 6px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.baa-ratebar-track i {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width var(--dur-slow) var(--ease-out-expo);
+}
+.baa-ratebar.rec .baa-ratebar-track i {
+  background: var(--color-data);
+}
+.baa-ratebar.dec .baa-ratebar-track i {
+  background: var(--color-fulfil);
+}
+.baa-ratebar-val {
+  color: var(--color-text-dim);
+  font-size: 9px;
+  text-align: right;
+}
+
+/* ---------- 右：商品意图排行榜 ---------- */
+.baa-prof-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 11px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+}
+.baa-prof-id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.baa-prof-id b {
+  font-size: 13px;
+  color: var(--color-text);
+}
+.baa-prof-id span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-text-faint);
+  font-size: 9px;
+}
+.baa-promo {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  color: var(--color-proposal);
+  background: var(--color-proposal-soft);
+  border-radius: var(--radius-pill);
+  font-size: 9px;
+}
+
+.baa-standings {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 9px;
+  overflow-y: auto;
+}
+.baa-standing {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+.baa-standing-rank {
+  color: var(--color-text-dim);
+  font-size: 12px;
+}
+.baa-standing-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text);
+  font-size: 11px;
+}
+.baa-standing-rate {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-dim);
+  font-size: 10px;
+}
+.baa-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.baa-dot.rec {
+  background: var(--color-data);
+}
+.baa-dot.dec {
+  background: var(--color-fulfil);
+}
+.baa-standing.best {
+  border-color: var(--color-fulfil);
+  background: var(--color-fulfil-soft);
+}
+.baa-standing.best .baa-standing-rank,
+.baa-standing.best .baa-standing-label {
+  color: var(--color-fulfil);
+}
+.baa-standing.worst {
+  border-color: var(--color-breach);
+}
+.baa-standing.worst .baa-standing-rank,
+.baa-standing.worst .baa-standing-label {
+  color: var(--color-breach);
+}
+
+.baa-insight {
+  display: flex;
+  gap: 9px;
+  margin-top: 10px;
+  padding: 11px;
+  background: linear-gradient(
+    120deg,
+    var(--color-proposal-soft),
+    var(--color-surface-1) 80%
+  );
+  border: 1px solid var(--color-proposal);
+  border-radius: 10px;
+}
+.baa-insight-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--color-void);
+  background: var(--color-proposal);
+  border-radius: 8px;
+}
+.baa-insight p {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+/* ---------- 空态 / 脚注 ---------- */
+.baa-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--color-text-faint);
+  font-size: 11px;
+}
+.baa-foot {
+  margin: 0;
+  color: var(--color-text-dim);
+  font-size: 10px;
+  line-height: 1.6;
+}
+.baa-foot b {
+  color: var(--color-text);
+}
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 1180px) {
+  .baa-summary {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 900px) {
+  .baa-body {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+  .baa-body > section {
+    min-height: 260px;
+  }
+}

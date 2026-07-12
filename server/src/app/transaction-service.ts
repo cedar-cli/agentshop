@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { activeServiceDefinitions, type ActiveServiceSnapshot } from "./active-services.js";
-import { fixtureInboxMessages, type InboxMessage, type InboxUpdate } from "./inbox.js";
+import {
+  activeServiceDefinitions,
+  type ActiveServiceSnapshot,
+} from "./active-services.js";
+import {
+  fixtureInboxMessages,
+  type InboxMessage,
+  type InboxUpdate,
+} from "./inbox.js";
 import { BuyerAgent } from "../agents/buyer-agent.js";
 import type { EvidenceAnswerGenerator } from "../agents/evidence-answer-generator.js";
 import type { ProposalGenerator } from "../agents/proposal-generator.js";
@@ -16,7 +23,14 @@ import {
   sellerProfiles,
   type SellerProfile,
 } from "../agents/seller-profiles.js";
-import type { ConsumerDelegationRequest, DemandNetworkRequest, ExecutableIntent, LaptopPurchaseRequested, PurchaseRequest, RestockIntent } from "../protocol/events.js";
+import type {
+  ConsumerDelegationRequest,
+  DemandNetworkRequest,
+  ExecutableIntent,
+  LaptopPurchaseRequested,
+  PurchaseRequest,
+  RestockIntent,
+} from "../protocol/events.js";
 import { EventRouter } from "../router/event-router.js";
 import {
   createNewbornBeddingScenario,
@@ -32,34 +46,57 @@ import {
   type LaptopApprovalState,
 } from "../scenario/laptop-purchase-workflow.js";
 import { runDelegationPurchase } from "../scenario/delegation-purchase-workflow.js";
-import { createRestockIntent, runHouseholdRestockWorkflow } from "../scenario/household-restock-workflow.js";
-import { activeSalesProduct, runActiveSalesWorkflow } from "../scenario/active-sales-workflow.js";
+import {
+  createRestockIntent,
+  runHouseholdRestockWorkflow,
+} from "../scenario/household-restock-workflow.js";
+import {
+  activeSalesProduct,
+  runActiveSalesWorkflow,
+} from "../scenario/active-sales-workflow.js";
 import { runDemandNetworkWorkflow } from "../scenario/demand-network-workflow.js";
-import { intentGrowthProduct, runIntentGrowthWorkflow } from "../scenario/intent-growth-workflow.js";
+import {
+  intentGrowthProduct,
+  runIntentGrowthWorkflow,
+} from "../scenario/intent-growth-workflow.js";
 import { SseHub, type SseListener } from "../server/sse-hub.js";
 import { EventStore, type StoredEvent } from "../store/event-store.js";
-import { projectMerchantTransaction, type MerchantTransactionProjection } from "./merchant-transactions.js";
+import {
+  projectMerchantTransaction,
+  type MerchantTransactionProjection,
+} from "./merchant-transactions.js";
 
 export type TransactionStatus =
-  | "queued"
-  | "running"
-  | "awaiting-approval"
-  | "completed"
-  | "failed";
+  "queued" | "running" | "awaiting-approval" | "completed" | "failed";
 
 /**
  * 交易类型：
  *  - purchase：现有的普通采购交易，request 为 PurchaseRequest。
  *  - newborn-bedding-demo：新生儿床品 A2A 演示，request 为可执行意图 ExecutableIntent。
  */
-export type TransactionKind = "purchase" | "newborn-bedding-demo" | "laptop-demo" | "consumer-delegation" | "household-restock-demo" | "active-sales-demo" | "demand-network-demo" | "intent-growth-demo";
+export type TransactionKind =
+  | "purchase"
+  | "newborn-bedding-demo"
+  | "laptop-demo"
+  | "consumer-delegation"
+  | "household-restock-demo"
+  | "active-sales-demo"
+  | "demand-network-demo"
+  | "intent-growth-demo";
 
 interface TransactionRecord {
   id: string;
   kind: TransactionKind;
   status: TransactionStatus;
   // 采购交易存 PurchaseRequest；Demo 交易存 ExecutableIntent（意图即请求）
-  request: PurchaseRequest | ExecutableIntent | LaptopPurchaseRequested | ConsumerDelegationRequest | RestockIntent | DemandNetworkRequest | { productId: string };
+  request:
+    | PurchaseRequest
+    | ExecutableIntent
+    | LaptopPurchaseRequested
+    | ConsumerDelegationRequest
+    | RestockIntent
+    | DemandNetworkRequest
+    | { productId: string };
   error?: string;
 }
 
@@ -121,9 +158,16 @@ export class TransactionService {
   private readonly counterNegotiator?: CounterNegotiator;
   private readonly laptopApprovals = new Map<string, LaptopApprovalState>();
   private readonly activeServiceTransactions = new Map<string, string>();
-  private readonly inboxMessages = new Map(fixtureInboxMessages.map((message) => [message.id, { ...message, evidence: [...message.evidence] }]));
+  private readonly inboxMessages = new Map(
+    fixtureInboxMessages.map((message) => [
+      message.id,
+      { ...message, evidence: [...message.evidence] },
+    ]),
+  );
   private readonly inboxListeners = new Set<(update: InboxUpdate) => void>();
-  private readonly merchantTransactionListeners = new Set<(update: MerchantTransactionUpdate) => void>();
+  private readonly merchantTransactionListeners = new Set<
+    (update: MerchantTransactionUpdate) => void
+  >();
   private readonly consumerMarketNeeds = new Map<string, DemandNeedFact>();
   private inboxSequence = 0;
   private merchantTransactionSequence = 0;
@@ -134,10 +178,16 @@ export class TransactionService {
     this.laptopLlmAgent = options.laptopLlmAgent;
     this.delegationLlmAgent = options.delegationLlmAgent;
     this.activeSalesLlmAgent = options.activeSalesLlmAgent;
-    this.activeSalesDecisionDelayMs = Math.max(0, options.activeSalesDecisionDelayMs ?? 0);
+    this.activeSalesDecisionDelayMs = Math.max(
+      0,
+      options.activeSalesDecisionDelayMs ?? 0,
+    );
     this.demandNetworkLlmAgent = options.demandNetworkLlmAgent;
     this.intentGrowthLlmAgent = options.intentGrowthLlmAgent;
-    this.intentGrowthStepDelayMs = Math.max(0, options.intentGrowthStepDelayMs ?? 0);
+    this.intentGrowthStepDelayMs = Math.max(
+      0,
+      options.intentGrowthStepDelayMs ?? 0,
+    );
     this.proposalGenerator = options.proposalGenerator;
     this.counterNegotiator = options.counterNegotiator;
     this.store = new EventStore(options.databaseFilename);
@@ -147,7 +197,7 @@ export class TransactionService {
     this.router.subscribe("purchase.requested", this.buyer);
     this.router.subscribe("proposal.submitted", this.buyer);
     this.router.subscribe("seller.selected", this.buyer);
-    // 买家在收到商家还价应答后据此确认订单
+    // 买家在收到卖家还价应答后据此确认订单
     this.router.subscribe("counter.response", this.buyer);
 
     for (const profile of profiles) {
@@ -156,7 +206,7 @@ export class TransactionService {
         options.proposalGenerator,
         options.counterNegotiator,
       );
-      // 商家既要能报价，也要能应答买家的还价
+      // 卖家既要能报价，也要能应答买家的还价
       this.router.subscribe("purchase.requested", seller);
       this.router.subscribe("counter.offer", seller);
     }
@@ -202,7 +252,7 @@ export class TransactionService {
   }
 
   /**
-   * 新增一笔消费者委托任务：用户给出完整购物意图（可选主动服务方式），
+   * 新增一笔买家委托任务：用户给出完整购物意图（可选主动服务方式），
    * 由消费 Agent 全自动接管——真实 LLM 解析意图、比较报价、议价，
    * 并在授权阈值内自动下单、履约、鉴证，全程无需人工点击确认。
    * @param request 完整购物意图与可选主动服务方式
@@ -217,15 +267,17 @@ export class TransactionService {
   }
 
   listSellerProducts() {
-    return [{
-      id: activeSalesProduct.id,
-      name: activeSalesProduct.name,
-      category: activeSalesProduct.category,
-      priceUsd: activeSalesProduct.priceUsd,
-      stock: activeSalesProduct.stock,
-      sourceCoverage: 58,
-      status: "online" as const,
-    }];
+    return [
+      {
+        id: activeSalesProduct.id,
+        name: activeSalesProduct.name,
+        category: activeSalesProduct.category,
+        priceUsd: activeSalesProduct.priceUsd,
+        stock: activeSalesProduct.stock,
+        sourceCoverage: 58,
+        status: "online" as const,
+      },
+    ];
   }
 
   createActiveSalesDemo(productId: string): string | undefined {
@@ -238,7 +290,9 @@ export class TransactionService {
   }
 
   createIntentGrowthDemo(): string {
-    return this.enqueue("intent-growth-demo", { productId: intentGrowthProduct.productId });
+    return this.enqueue("intent-growth-demo", {
+      productId: intentGrowthProduct.productId,
+    });
   }
 
   listMerchantTransactions(): MerchantTransactionProjection[] {
@@ -246,11 +300,18 @@ export class TransactionService {
       .map((transactionId) => this.get(transactionId))
       .filter((snapshot): snapshot is TransactionSnapshot => Boolean(snapshot))
       .map(projectMerchantTransaction)
-      .filter((transaction): transaction is MerchantTransactionProjection => Boolean(transaction))
-      .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
+      .filter((transaction): transaction is MerchantTransactionProjection =>
+        Boolean(transaction),
+      )
+      .sort(
+        (left, right) =>
+          Date.parse(right.updatedAt) - Date.parse(left.updatedAt),
+      );
   }
 
-  subscribeMerchantTransactions(listener: (update: MerchantTransactionUpdate) => void): () => void {
+  subscribeMerchantTransactions(
+    listener: (update: MerchantTransactionUpdate) => void,
+  ): () => void {
     this.merchantTransactionListeners.add(listener);
     return () => this.merchantTransactionListeners.delete(listener);
   }
@@ -261,19 +322,33 @@ export class TransactionService {
       if (!transactionId) return { ...definition, flow: [...definition.flow] };
       const transaction = this.get(transactionId);
       if (!transaction) return { ...definition, flow: [...definition.flow] };
-      const status = transaction.status === "completed"
-        ? "completed"
-        : transaction.status === "failed"
-          ? "failed"
-          : "executing";
-      const order = transaction.events.find((event) => event.type === "restock.order.confirmed");
-      const totalPriceCny = order?.type === "restock.order.confirmed" ? order.payload.totalPriceCny : undefined;
+      const status =
+        transaction.status === "completed"
+          ? "completed"
+          : transaction.status === "failed"
+            ? "failed"
+            : "executing";
+      const order = transaction.events.find(
+        (event) => event.type === "restock.order.confirmed",
+      );
+      const totalPriceCny =
+        order?.type === "restock.order.confirmed"
+          ? order.payload.totalPriceCny
+          : undefined;
       return {
         ...definition,
         flow: [...definition.flow],
         status,
-        statusLabel: status === "completed" ? "自动完成" : status === "failed" ? "执行失败" : "自主执行中",
-        signal: totalPriceCny === undefined ? definition.signal : `刚刚自动成交 ¥${totalPriceCny}`,
+        statusLabel:
+          status === "completed"
+            ? "自动完成"
+            : status === "failed"
+              ? "执行失败"
+              : "自主执行中",
+        signal:
+          totalPriceCny === undefined
+            ? definition.signal
+            : `刚刚自动成交 ¥${totalPriceCny}`,
         transactionId,
         transactionStatus: transaction.status,
         eventCount: transaction.events.length,
@@ -283,12 +358,19 @@ export class TransactionService {
   }
 
   triggerActiveService(serviceId: string): string | undefined {
-    const definition = activeServiceDefinitions.find((item) => item.id === serviceId);
+    const definition = activeServiceDefinitions.find(
+      (item) => item.id === serviceId,
+    );
     if (!definition) return undefined;
-    if (!definition.triggerable) throw new Error("active_service_not_triggerable");
+    if (!definition.triggerable)
+      throw new Error("active_service_not_triggerable");
     const currentId = this.activeServiceTransactions.get(serviceId);
     const current = currentId ? this.transactions.get(currentId) : undefined;
-    if (current && (current.status === "queued" || current.status === "running")) return current.id;
+    if (
+      current &&
+      (current.status === "queued" || current.status === "running")
+    )
+      return current.id;
     const transactionId = this.createHouseholdRestockDemo();
     this.activeServiceTransactions.set(serviceId, transactionId);
     return transactionId;
@@ -297,7 +379,10 @@ export class TransactionService {
   listInboxMessages(): InboxMessage[] {
     return [...this.inboxMessages.values()]
       .map((message) => ({ ...message, evidence: [...message.evidence] }))
-      .sort((left, right) => Date.parse(right.receivedAt) - Date.parse(left.receivedAt));
+      .sort(
+        (left, right) =>
+          Date.parse(right.receivedAt) - Date.parse(left.receivedAt),
+      );
   }
 
   subscribeInbox(listener: (update: InboxUpdate) => void): () => void {
@@ -305,7 +390,10 @@ export class TransactionService {
     return () => this.inboxListeners.delete(listener);
   }
 
-  updateInboxMemory(messageId: string, recommended: boolean): InboxMessage | undefined {
+  updateInboxMemory(
+    messageId: string,
+    recommended: boolean,
+  ): InboxMessage | undefined {
     const current = this.inboxMessages.get(messageId);
     if (!current) return undefined;
     const message = { ...current, memoryRecommended: recommended };
@@ -323,7 +411,9 @@ export class TransactionService {
     return { ...message, evidence: [...message.evidence] };
   }
 
-  async approveLaptopDemo(transactionId: string): Promise<TransactionSnapshot | undefined> {
+  async approveLaptopDemo(
+    transactionId: string,
+  ): Promise<TransactionSnapshot | undefined> {
     const transaction = this.transactions.get(transactionId);
     const approval = this.laptopApprovals.get(transactionId);
     if (!transaction || transaction.kind !== "laptop-demo") return undefined;
@@ -334,14 +424,19 @@ export class TransactionService {
     transaction.status = "running";
     this.publishMerchantTransaction(transactionId);
     try {
-      await completeApprovedLaptopPurchase(this.router, transactionId, approval);
+      await completeApprovedLaptopPurchase(
+        this.router,
+        transactionId,
+        approval,
+      );
       transaction.status = "completed";
       this.laptopApprovals.delete(transactionId);
       this.publishMerchantTransaction(transactionId);
       return this.get(transactionId);
     } catch (error) {
       transaction.status = "failed";
-      transaction.error = error instanceof Error ? error.message : String(error);
+      transaction.error =
+        error instanceof Error ? error.message : String(error);
       this.publishMerchantTransaction(transactionId);
       throw error;
     }
@@ -393,7 +488,13 @@ export class TransactionService {
    */
   private enqueue(
     kind: TransactionKind,
-    request: PurchaseRequest | ExecutableIntent | LaptopPurchaseRequested | RestockIntent | DemandNetworkRequest | { productId: string },
+    request:
+      | PurchaseRequest
+      | ExecutableIntent
+      | LaptopPurchaseRequested
+      | RestockIntent
+      | DemandNetworkRequest
+      | { productId: string },
   ): string {
     const transactionId = `tx-${randomUUID()}`;
     this.transactions.set(transactionId, {
@@ -451,7 +552,12 @@ export class TransactionService {
         );
         this.projectRestockInbox(transactionId);
       } else if (transaction.kind === "active-sales-demo") {
-        await runActiveSalesWorkflow(this.router, transactionId, this.activeSalesLlmAgent, this.activeSalesDecisionDelayMs);
+        await runActiveSalesWorkflow(
+          this.router,
+          transactionId,
+          this.activeSalesLlmAgent,
+          this.activeSalesDecisionDelayMs,
+        );
         this.projectActiveSalesCompletion(transactionId);
       } else if (transaction.kind === "demand-network-demo") {
         await runDemandNetworkWorkflow(
@@ -490,15 +596,28 @@ export class TransactionService {
   private projectRestockInbox(transactionId: string): void {
     const snapshot = this.get(transactionId);
     if (!snapshot) return;
-    const order = snapshot.events.find((event) => event.type === "restock.order.confirmed");
-    const authorization = snapshot.events.find((event) => event.type === "restock.order.authorized");
-    const memory = snapshot.events.find((event) => event.type === "restock.memory.updated");
-    if (order?.type !== "restock.order.confirmed" || authorization?.type !== "restock.order.authorized") return;
-    const llmCount = snapshot.events.filter((event) =>
-      "generatedBy" in event.payload && event.payload.generatedBy === "llm",
+    const order = snapshot.events.find(
+      (event) => event.type === "restock.order.confirmed",
+    );
+    const authorization = snapshot.events.find(
+      (event) => event.type === "restock.order.authorized",
+    );
+    const memory = snapshot.events.find(
+      (event) => event.type === "restock.memory.updated",
+    );
+    if (
+      order?.type !== "restock.order.confirmed" ||
+      authorization?.type !== "restock.order.authorized"
+    )
+      return;
+    const llmCount = snapshot.events.filter(
+      (event) =>
+        "generatedBy" in event.payload && event.payload.generatedBy === "llm",
     ).length;
-    const fallbackCount = snapshot.events.filter((event) =>
-      "generatedBy" in event.payload && event.payload.generatedBy === "fallback",
+    const fallbackCount = snapshot.events.filter(
+      (event) =>
+        "generatedBy" in event.payload &&
+        event.payload.generatedBy === "fallback",
     ).length;
     const message: InboxMessage = {
       id: `inbox-restock-${transactionId}`,
@@ -514,18 +633,22 @@ export class TransactionService {
       evidence: [
         `长期授权校验通过 · 人类交互 ${authorization.payload.humanInteractions} 次`,
         `真实模型参与 ${llmCount} 次 · fallback ${fallbackCount} 次`,
-        snapshot.chainValid ? "交易事件 Hash Chain 已验证" : "交易事件 Hash Chain 验证失败",
+        snapshot.chainValid
+          ? "交易事件 Hash Chain 已验证"
+          : "交易事件 Hash Chain 验证失败",
       ],
       verdict: "valuable",
       verdictLabel: "自动完成",
       valueScore: 100,
-      agentEvaluation: "Agent 在长期授权范围内完成库存预测、三家报价、组合议价和自动下单，仅在完成后发送摘要。",
+      agentEvaluation:
+        "Agent 在长期授权范围内完成库存预测、三家报价、组合议价和自动下单，仅在完成后发送摘要。",
       requiresAction: false,
       generatedBy: "rule",
       memoryRecommended: true,
-      memoryReason: memory?.type === "restock.memory.updated"
-        ? memory.payload.memory
-        : "记录本次补库价格与消耗周期，用于下次预测。",
+      memoryReason:
+        memory?.type === "restock.memory.updated"
+          ? memory.payload.memory
+          : "记录本次补库价格与消耗周期，用于下次预测。",
       relatedPurchaseId: "paper-restock",
       transactionId,
       chainValid: snapshot.chainValid,
@@ -535,9 +658,15 @@ export class TransactionService {
   }
 
   private projectActiveSalesProposal(event: StoredEvent): void {
-    if (event.type !== "active-sale.proposal.routed" || event.payload.buyerId !== "mia") return;
+    if (
+      event.type !== "active-sale.proposal.routed" ||
+      event.payload.buyerId !== "mia"
+    )
+      return;
     const transactionId = event.transactionId;
-    const passport = this.store.list(transactionId).find((item) => item.type === "active-sale.passport.published");
+    const passport = this.store
+      .list(transactionId)
+      .find((item) => item.type === "active-sale.passport.published");
     const message: InboxMessage = {
       id: `inbox-active-sale-${transactionId}`,
       type: "opportunity",
@@ -574,13 +703,25 @@ export class TransactionService {
   private projectActiveSalesCompletion(transactionId: string): void {
     const snapshot = this.get(transactionId);
     if (!snapshot) return;
-    const completed = snapshot.events.find((event) => event.type === "active-sale.completed");
-    const proposal = snapshot.events.find((event) =>
-      event.type === "active-sale.proposal.routed" && event.payload.buyerId === "mia",
+    const completed = snapshot.events.find(
+      (event) => event.type === "active-sale.completed",
     );
-    const passport = snapshot.events.find((event) => event.type === "active-sale.passport.published");
-    if (completed?.type !== "active-sale.completed" || proposal?.type !== "active-sale.proposal.routed") return;
-    const pending = this.inboxMessages.get(`inbox-active-sale-${transactionId}`);
+    const proposal = snapshot.events.find(
+      (event) =>
+        event.type === "active-sale.proposal.routed" &&
+        event.payload.buyerId === "mia",
+    );
+    const passport = snapshot.events.find(
+      (event) => event.type === "active-sale.passport.published",
+    );
+    if (
+      completed?.type !== "active-sale.completed" ||
+      proposal?.type !== "active-sale.proposal.routed"
+    )
+      return;
+    const pending = this.inboxMessages.get(
+      `inbox-active-sale-${transactionId}`,
+    );
     const message: InboxMessage = {
       id: `inbox-active-sale-${transactionId}`,
       type: "completed",
@@ -597,7 +738,9 @@ export class TransactionService {
         passport?.type === "active-sale.passport.published"
           ? `Product Passport ${passport.payload.coverageAfter}% · ${passport.payload.generatedBy.toUpperCase()}`
           : "Product Passport 已验证",
-        snapshot.chainValid ? "主动销售事件 Hash Chain 已验证" : "主动销售事件链验证失败",
+        snapshot.chainValid
+          ? "主动销售事件 Hash Chain 已验证"
+          : "主动销售事件链验证失败",
       ],
       verdict: "valuable",
       verdictLabel: "自动成交",
@@ -606,12 +749,16 @@ export class TransactionService {
       requiresAction: false,
       generatedBy: proposal.payload.generatedBy === "llm" ? "llm" : "rule",
       memoryRecommended: true,
-      memoryReason: "记录低敏证据、三日送达和预算偏好，用于未来同类商品的授权判断。",
+      memoryReason:
+        "记录低敏证据、三日送达和预算偏好，用于未来同类商品的授权判断。",
       transactionId,
       chainValid: snapshot.chainValid,
     };
     this.inboxMessages.set(message.id, message);
-    this.publishInbox(pending ? "inbox.message.updated" : "inbox.message.upserted", message);
+    this.publishInbox(
+      pending ? "inbox.message.updated" : "inbox.message.upserted",
+      message,
+    );
   }
 
   private captureConsumerMarketNeed(event: StoredEvent): void {
@@ -626,7 +773,11 @@ export class TransactionService {
           quantity: 1,
           budgetUsd: Number((event.payload.budgetCny / 7.2).toFixed(2)),
           deadlineDays: event.payload.deadlineHours / 24,
-          requirements: [`重量 ≤${event.payload.maxWeightKg}kg`, `续航 ≥${event.payload.minBatteryHours}h`, event.payload.requiresNationalWarranty ? "全国联保" : "保修可选"],
+          requirements: [
+            `重量 ≤${event.payload.maxWeightKg}kg`,
+            `续航 ≥${event.payload.minBatteryHours}h`,
+            event.payload.requiresNationalWarranty ? "全国联保" : "保修可选",
+          ],
         },
       });
       return;
@@ -638,7 +789,8 @@ export class TransactionService {
         text: `${event.payload.product}；${event.payload.reason}`,
         source: "consumer-transaction",
         fallbackIntent: {
-          scene: "家庭日用品自主补库", quantity: event.payload.quantity,
+          scene: "家庭日用品自主补库",
+          quantity: event.payload.quantity,
           budgetUsd: Number((event.payload.budgetCny / 7.2).toFixed(2)),
           deadlineDays: event.payload.deadlineHours / 24,
           requirements: event.payload.constraints,
@@ -653,9 +805,13 @@ export class TransactionService {
         text: event.payload.productDescription,
         source: "consumer-transaction",
         fallbackIntent: {
-          scene: "可执行消费意图", quantity: 1, budgetUsd: event.payload.budgetUsd,
+          scene: "可执行消费意图",
+          quantity: 1,
+          budgetUsd: event.payload.budgetUsd,
           deadlineDays: event.payload.deadlineHours / 24,
-          requirements: event.payload.evidenceRequirements.map((requirement) => requirement.description),
+          requirements: event.payload.evidenceRequirements.map(
+            (requirement) => requirement.description,
+          ),
         },
       });
     }
@@ -676,7 +832,11 @@ export class TransactionService {
   }
 
   private publishInbox(type: InboxUpdate["type"], message: InboxMessage): void {
-    const update: InboxUpdate = { sequence: ++this.inboxSequence, type, message: { ...message, evidence: [...message.evidence] } };
+    const update: InboxUpdate = {
+      sequence: ++this.inboxSequence,
+      type,
+      message: { ...message, evidence: [...message.evidence] },
+    };
     for (const listener of this.inboxListeners) listener(update);
   }
 }

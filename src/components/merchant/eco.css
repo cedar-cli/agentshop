@@ -176,7 +176,35 @@
   100% { transform: translateX(0); opacity: 1; }
 }
 
-/* ---------- 中：竞速榜 ---------- */
+/* ---------- 中：意图榜 ---------- */
+.eco-intent-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 5px;
+  margin-bottom: 7px;
+  scrollbar-width: none;
+}
+.eco-intent-tabs::-webkit-scrollbar { display: none; }
+.eco-intent-tabs button {
+  flex: none;
+  padding: 4px 10px;
+  color: var(--color-text-dim);
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  white-space: nowrap;
+  transition: all var(--dur-fast) var(--ease-out-expo);
+}
+.eco-intent-tabs button:hover { border-color: var(--color-border-strong); }
+.eco-intent-tabs button.on {
+  color: var(--color-void);
+  background: var(--color-data);
+  border-color: transparent;
+}
+.eco-intent-hint { margin: 0 0 9px; color: var(--color-text-faint); font-size: 9px; }
+
 .eco-race-list {
   display: flex;
   flex-direction: column;
@@ -187,7 +215,7 @@
   display: grid;
   grid-template-columns: 22px 1fr auto;
   grid-template-areas:
-    'rank name arche'
+    'rank name delta'
     'rank bar credit';
   align-items: center;
   gap: 2px 9px;
@@ -212,8 +240,14 @@
   border-radius: 50%;
   font-size: 10px;
 }
-.eco-name {
+.eco-name-wrap {
   grid-area: name;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.eco-name {
   overflow: hidden;
   font-size: 11px;
   color: var(--color-text);
@@ -221,10 +255,23 @@
   white-space: nowrap;
 }
 .eco-arche {
-  grid-area: arche;
+  flex: none;
   color: var(--color-text-faint);
   font-size: 8px;
 }
+.eco-delta {
+  grid-area: delta;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  justify-self: end;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  font-size: 9px;
+}
+.eco-delta.up { color: var(--color-fulfil); background: var(--color-fulfil-soft); }
+.eco-delta.down { color: var(--color-breach); background: var(--color-breach-soft); }
+.eco-delta.flat { color: var(--color-text-faint); padding: 1px 4px; }
 .eco-bar-track {
   grid-area: bar;
   height: 8px;
@@ -300,6 +347,42 @@
 .eco-attr-row.top .eco-attr-label { color: var(--color-breach); font-weight: 600; }
 .eco-attr-row.top .eco-attr-track i { box-shadow: var(--glow-breach); }
 
+/* 意图榜站位：同一履约在各类买家眼中的名次 */
+.eco-standings { margin-top: 14px; }
+.eco-standings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+.eco-standing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+.eco-standing-label {
+  flex: 1;
+  overflow: hidden;
+  color: var(--color-text-dim);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.eco-standing-rank { color: var(--color-text); font-size: 12px; }
+.eco-standing.best {
+  border-color: var(--color-fulfil);
+  background: var(--color-fulfil-soft);
+}
+.eco-standing.best .eco-standing-label,
+.eco-standing.best .eco-standing-rank { color: var(--color-fulfil); }
+.eco-standing.worst { border-color: var(--color-breach); }
+.eco-standing.worst .eco-standing-label,
+.eco-standing.worst .eco-standing-rank { color: var(--color-breach); }
+
 .eco-report-summary {
   margin: 14px 0 0;
   color: var(--color-text-dim);
@@ -326,6 +409,10 @@
   border-radius: 8px;
 }
 .eco-advice p { margin: 4px 0 0; color: var(--color-text); font-size: 11px; line-height: 1.55; }
+.eco-advice-cross {
+  color: var(--color-text-dim) !important;
+  font-size: 10px !important;
+}
 
 .eco-report-empty {
   display: flex;

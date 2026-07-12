@@ -115,7 +115,9 @@ describe("newborn bedding · Seller C evidence answers via LLM", () => {
     expect(sellerC.generatedBy).toBe("llm");
     expect(sellerC.fallbackReason).toBeUndefined();
     expect(sellerC.answers).toEqual(LLM_ANSWERS);
-    expect(Object.keys(sellerC.answers).sort()).toEqual([...QUESTION_IDS].sort());
+    expect(Object.keys(sellerC.answers).sort()).toEqual(
+      [...QUESTION_IDS].sort(),
+    );
 
     // 回答走 LLM 不改变结果：仍 18 事件、C 以 164 获胜
     expectStandardWinningChain(events);
@@ -136,7 +138,9 @@ describe("newborn bedding · Seller C evidence answers via LLM", () => {
     expect(sellerC.fallbackReason).toBeTruthy();
     expect((sellerC.fallbackReason ?? "").length).toBeLessThanOrEqual(240);
     // 兜底答案仍覆盖 5 个问题，且与 LLM 桩文案不同
-    expect(Object.keys(sellerC.answers).sort()).toEqual([...QUESTION_IDS].sort());
+    expect(Object.keys(sellerC.answers).sort()).toEqual(
+      [...QUESTION_IDS].sort(),
+    );
     expect(sellerC.answers).not.toEqual(LLM_ANSWERS);
 
     expectStandardWinningChain(events);
@@ -155,7 +159,9 @@ describe("newborn bedding · Seller C evidence answers via LLM", () => {
     const sellerC = submissionOf(events, "seller-c");
 
     expect(sellerC.generatedBy).toBe("fallback");
-    expect(Object.keys(sellerC.answers).sort()).toEqual([...QUESTION_IDS].sort());
+    expect(Object.keys(sellerC.answers).sort()).toEqual(
+      [...QUESTION_IDS].sort(),
+    );
     expectStandardWinningChain(events);
   });
 
@@ -176,7 +182,9 @@ describe("newborn bedding · Seller C evidence answers via LLM", () => {
     expect(sellerC.generatedBy).toBe("fallback");
     // 越界字段不得进入最终答案
     expect(sellerC.answers["q-unknown"]).toBeUndefined();
-    expect(Object.keys(sellerC.answers).sort()).toEqual([...QUESTION_IDS].sort());
+    expect(Object.keys(sellerC.answers).sort()).toEqual(
+      [...QUESTION_IDS].sort(),
+    );
     expectStandardWinningChain(events);
   });
 
@@ -243,7 +251,9 @@ describe("newborn bedding · answer generator scoping", () => {
     let calls = 0;
     // 间谍生成器：只要被调用就计数并抛错，用于证明「关闭时不触达模型」
     const spy: EvidenceAnswerGenerator = {
-      async generate(_input: EvidenceAnswerInput): Promise<EvidenceAnswerResult> {
+      async generate(
+        _input: EvidenceAnswerInput,
+      ): Promise<EvidenceAnswerResult> {
         calls += 1;
         throw new Error("model must not be called when disabled");
       },
@@ -262,7 +272,9 @@ describe("newborn bedding · answer generator scoping", () => {
   it("does not expose a generator error message through fallbackReason", async () => {
     const generator: EvidenceAnswerGenerator = {
       async generate(): Promise<EvidenceAnswerResult> {
-        throw new Error("upstream failed with sk-secret-value in Authorization");
+        throw new Error(
+          "upstream failed with sk-secret-value in Authorization",
+        );
       },
     };
 
@@ -278,7 +290,9 @@ describe("newborn bedding · answer generator scoping", () => {
     const seenSellers = new Set<string>();
     // 该生成器会记录所有调用它的卖家；注入后应只被 Seller C 调用
     const recordingGenerator: EvidenceAnswerGenerator = {
-      async generate(input: EvidenceAnswerInput): Promise<EvidenceAnswerResult> {
+      async generate(
+        input: EvidenceAnswerInput,
+      ): Promise<EvidenceAnswerResult> {
         seenSellers.add(input.seller.sellerId);
         return { answers: { ...LLM_ANSWERS }, generatedBy: "llm" };
       },

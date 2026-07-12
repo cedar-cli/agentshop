@@ -38,7 +38,7 @@ class FallbackCounterNegotiator implements CounterNegotiator {
 export class SellerAgent implements AgentHandler {
   readonly id: string;
 
-  // 记录本商家在各交易中的原始报价与对应采购需求，供后续砍价环节换算成本底线与让步幅度
+  // 记录本卖家在各交易中的原始报价与对应采购需求，供后续砍价环节换算成本底线与让步幅度
   private readonly quotes = new Map<
     string,
     { request: PurchaseRequest; totalPrice: number }
@@ -104,7 +104,7 @@ export class SellerAgent implements AgentHandler {
 
   /**
    * 处理买家的一轮还价。
-   * 只有被点名的赢家（offer.sellerId === 本商家）才应答；其余商家忽略。
+   * 只有被点名的赢家（offer.sellerId === 本卖家）才应答；其余卖家忽略。
    * 用 LLM 决定让步幅度与话术，超时或返回非法（跌破成本底线/借机涨价）时降级到规则兜底。
    */
   private async handleCounterOffer(
@@ -113,7 +113,7 @@ export class SellerAgent implements AgentHandler {
     const offer = event.payload;
     if (offer.sellerId !== this.id) return [];
 
-    // 取回本商家在该交易中的原始报价与采购需求；理论上必然存在（先报价才会被还价）
+    // 取回本卖家在该交易中的原始报价与采购需求；理论上必然存在（先报价才会被还价）
     const quote = this.quotes.get(event.transactionId);
     const request = quote?.request;
     if (!request) {

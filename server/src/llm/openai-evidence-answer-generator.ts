@@ -178,7 +178,10 @@ export class OpenAIEvidenceAnswerGenerator implements EvidenceAnswerGenerator {
       const parsed = response.output_parsed;
       if (!parsed) {
         // 模型没有产出结构化结果：降级
-        return { ...fallback, fallbackReason: "llm returned no structured answers" };
+        return {
+          ...fallback,
+          fallbackReason: "llm returned no structured answers",
+        };
       }
 
       // 二次兜底校验：缺字段/空答案/多余字段都会抛错并触发降级

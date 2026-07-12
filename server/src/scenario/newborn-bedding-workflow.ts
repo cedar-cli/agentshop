@@ -231,7 +231,9 @@ class BuyerEvidenceAgent implements AgentHandler {
     ) {
       return [];
     }
-    if (!this.sellers.some((seller) => seller.sellerId === event.payload.sellerId)) {
+    if (
+      !this.sellers.some((seller) => seller.sellerId === event.payload.sellerId)
+    ) {
       return [];
     }
 
@@ -316,7 +318,8 @@ class NewbornBeddingSellerAgent implements AgentHandler {
     if (
       event.payload.intentId !== this.intent.intentId ||
       event.payload.sellerId !== this.seller.sellerId ||
-      event.causationId !== transaction.matchedEventIds.get(this.seller.sellerId)
+      event.causationId !==
+        transaction.matchedEventIds.get(this.seller.sellerId)
     ) {
       return [];
     }
@@ -467,7 +470,8 @@ class EvidenceEvaluatorAgent implements AgentHandler {
     const evaluatedAt = this.now();
     return this.sellers.map((seller) => {
       const submission = transaction.submissions.get(seller.sellerId);
-      if (!submission) throw new Error(`Missing submission for ${seller.sellerId}`);
+      if (!submission)
+        throw new Error(`Missing submission for ${seller.sellerId}`);
 
       const score = { ...seller.postVerificationScore };
       const evidenceValid = hasAllMandatoryEvidence(
@@ -517,7 +521,11 @@ class AutoPurchaseAgent implements AgentHandler {
     if (event.source !== WORKFLOW_ACTORS.evaluator) return [];
     const transaction = this.state.get(event.transactionId);
     const submission = transaction?.submissions.get(event.payload.sellerId);
-    if (!transaction || !submission || event.causationId !== submission.eventId) {
+    if (
+      !transaction ||
+      !submission ||
+      event.causationId !== submission.eventId
+    ) {
       return [];
     }
     transaction.finalScores.set(event.payload.sellerId, {
@@ -532,10 +540,13 @@ class AutoPurchaseAgent implements AgentHandler {
       .filter((score) => this.isEligible(score, transaction));
 
     // 从合格者里选 totalScore 最高的（并列时取先出现者，保持确定性）
-    const winner = eligible.reduce<SellerScoreVector | null>((best, current) => {
-      if (!best) return current;
-      return current.totalScore > best.totalScore ? current : best;
-    }, null);
+    const winner = eligible.reduce<SellerScoreVector | null>(
+      (best, current) => {
+        if (!best) return current;
+        return current.totalScore > best.totalScore ? current : best;
+      },
+      null,
+    );
 
     // 没有任何合格卖家：不产生授权（本场景不会发生，但逻辑上要成立）
     if (!winner) {

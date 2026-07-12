@@ -127,7 +127,8 @@ export interface SellerScenario {
 export function createNewbornBeddingIntent(): ExecutableIntent {
   return {
     intentId: "intent-newborn-bedding",
-    productDescription: "一套新生儿低敏床品（婴儿床四件套，需通过婴幼儿级安全标准）",
+    productDescription:
+      "一套新生儿低敏床品（婴儿床四件套，需通过婴幼儿级安全标准）",
     budgetUsd: 180,
     deadlineHours: 72,
     // 风险阈值 0.15：只有风险分低于该值才允许自动成交，体现"低敏高敏感采购"的保守取向

@@ -185,7 +185,9 @@ describe("newborn bedding A2A workflow · evidence protocol", () => {
     expect(a?.["q-bundle-offer"]).toBe("false");
     expect(c?.["q-bundle-offer"]).toMatch(/^true/);
     // 三家答案不完全相同
-    expect(new Set([JSON.stringify(a), JSON.stringify(b), JSON.stringify(c)]).size).toBe(3);
+    expect(
+      new Set([JSON.stringify(a), JSON.stringify(b), JSON.stringify(c)]).size,
+    ).toBe(3);
     // 覆盖全部 5 个问题
     for (const answers of [a, b, c]) {
       expect(Object.keys(answers ?? {}).sort()).toEqual([
@@ -203,7 +205,9 @@ describe("newborn bedding A2A workflow · auto purchase outcome", () => {
   it("rejects A and B, authorizes C at 164 with a compliant score", async () => {
     const events = await runOnce("tx-outcome");
 
-    const authorized = events.find((event) => event.type === "order.authorized");
+    const authorized = events.find(
+      (event) => event.type === "order.authorized",
+    );
     if (authorized?.type !== "order.authorized") {
       throw new Error("missing order.authorized");
     }
@@ -243,7 +247,9 @@ describe("newborn bedding A2A workflow · auto purchase outcome", () => {
     expect(receipt.payload.amountUsd).toBe(164);
     expect(receipt.payload.deliveryHours).toBe(72);
     // issuedAt 是合法 ISO 时间
-    expect(() => new Date(receipt.payload.issuedAt).toISOString()).not.toThrow();
+    expect(() =>
+      new Date(receipt.payload.issuedAt).toISOString(),
+    ).not.toThrow();
     expect(new Date(receipt.payload.issuedAt).toISOString()).toBe(
       receipt.payload.issuedAt,
     );
@@ -321,7 +327,9 @@ describe("newborn bedding A2A workflow · integrity", () => {
           event.type === "seller.score.updated") &&
         event.source === WORKFLOW_ACTORS.buyer
       ) {
-        expect(event.causationId).toBe(matchedBySeller.get(event.payload.sellerId));
+        expect(event.causationId).toBe(
+          matchedBySeller.get(event.payload.sellerId),
+        );
       }
       if (
         event.type === "seller.score.updated" &&
@@ -386,7 +394,9 @@ describe("newborn bedding A2A workflow · rejection paths", () => {
     if (sellerCScore?.type === "seller.score.updated") {
       expect(sellerCScore.payload.stage).toBe("rejected");
     }
-    expect(events.some((event) => event.type === "order.authorized")).toBe(false);
+    expect(events.some((event) => event.type === "order.authorized")).toBe(
+      false,
+    );
     expect(events.some((event) => event.type === "receipt.issued")).toBe(false);
     store.close();
   });
@@ -400,7 +410,9 @@ describe("newborn bedding A2A workflow · rejection paths", () => {
     await runNewbornBeddingWorkflow(router, "tx-manual-only");
 
     const events = store.list("tx-manual-only");
-    expect(events.some((event) => event.type === "order.authorized")).toBe(false);
+    expect(events.some((event) => event.type === "order.authorized")).toBe(
+      false,
+    );
     expect(events.some((event) => event.type === "receipt.issued")).toBe(false);
     store.close();
   });
@@ -431,12 +443,12 @@ describe("newborn bedding A2A workflow · transaction isolation", () => {
     expect(one).toHaveLength(18);
     expect(two).toHaveLength(18);
     // 每笔交易的事件只属于自己，绝不串单
-    expect(one.every((event: AgentEvent) => event.transactionId === "tx-par-1")).toBe(
-      true,
-    );
-    expect(two.every((event: AgentEvent) => event.transactionId === "tx-par-2")).toBe(
-      true,
-    );
+    expect(
+      one.every((event: AgentEvent) => event.transactionId === "tx-par-1"),
+    ).toBe(true);
+    expect(
+      two.every((event: AgentEvent) => event.transactionId === "tx-par-2"),
+    ).toBe(true);
     // 两笔交易的类型序列各自都是完整 18 事件链
     expect(one.map((e) => e.type)).toEqual(EXPECTED_TYPES);
     expect(two.map((e) => e.type)).toEqual(EXPECTED_TYPES);

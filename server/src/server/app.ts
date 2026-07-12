@@ -1,6 +1,11 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { z } from "zod";
-import { consumerDelegationRequestSchema, demandNetworkRequestSchema, laptopPurchaseRequestSchema, purchaseRequestSchema } from "../protocol/schemas.js";
+import {
+  consumerDelegationRequestSchema,
+  demandNetworkRequestSchema,
+  laptopPurchaseRequestSchema,
+  purchaseRequestSchema,
+} from "../protocol/schemas.js";
 import type { TransactionService } from "../app/transaction-service.js";
 
 function writeSseEvent(
@@ -29,21 +34,27 @@ export function buildApp(
 
   app.get("/health", async () => ({ status: "ok" }));
 
-  app.get("/api/runtime", async () =>
-    options.runtimeInfo ?? {
-      model: "unknown",
-      llmConfigured: false,
-      evidenceLlmEnabled: false,
-    },
+  app.get(
+    "/api/runtime",
+    async () =>
+      options.runtimeInfo ?? {
+        model: "unknown",
+        llmConfigured: false,
+        evidenceLlmEnabled: false,
+      },
   );
 
   app.get("/api/transactions", async () => ({
     transactions: service.list(),
   }));
 
-  app.get("/api/seller/products", async () => ({ products: service.listSellerProducts() }));
+  app.get("/api/seller/products", async () => ({
+    products: service.listSellerProducts(),
+  }));
 
-  app.get("/api/merchant/transactions", async () => ({ transactions: service.listMerchantTransactions() }));
+  app.get("/api/merchant/transactions", async () => ({
+    transactions: service.listMerchantTransactions(),
+  }));
 
   app.get("/api/merchant/transactions/events", async (request, reply) => {
     reply.hijack();
@@ -59,24 +70,37 @@ export function buildApp(
       reply.raw.write(`event: ${update.type}\n`);
       reply.raw.write(`data: ${JSON.stringify(update)}\n\n`);
     });
-    const heartbeat = setInterval(() => reply.raw.write(": heartbeat\n\n"), 15_000);
-    request.raw.on("close", () => { clearInterval(heartbeat); unsubscribe(); });
-  });
-
-  app.post<{ Params: { id: string } }>("/api/seller/products/:id/activate", async (request, reply) => {
-    const transactionId = service.createActiveSalesDemo(request.params.id);
-    if (!transactionId) return reply.status(404).send({ error: "seller_product_not_found" });
-    return reply.status(202).send({
-      transactionId,
-      status: "queued",
-      transactionUrl: `/api/transactions/${transactionId}`,
-      eventsUrl: `/api/transactions/${transactionId}/events`,
+    const heartbeat = setInterval(
+      () => reply.raw.write(": heartbeat\n\n"),
+      15_000,
+    );
+    request.raw.on("close", () => {
+      clearInterval(heartbeat);
+      unsubscribe();
     });
   });
 
+  app.post<{ Params: { id: string } }>(
+    "/api/seller/products/:id/activate",
+    async (request, reply) => {
+      const transactionId = service.createActiveSalesDemo(request.params.id);
+      if (!transactionId)
+        return reply.status(404).send({ error: "seller_product_not_found" });
+      return reply.status(202).send({
+        transactionId,
+        status: "queued",
+        transactionUrl: `/api/transactions/${transactionId}`,
+        eventsUrl: `/api/transactions/${transactionId}/events`,
+      });
+    },
+  );
+
   app.post("/api/seller/demand-network", async (request, reply) => {
     const parsed = demandNetworkRequestSchema.safeParse(request.body);
-    if (!parsed.success) return reply.status(400).send({ error: "invalid_demand_network_request" });
+    if (!parsed.success)
+      return reply
+        .status(400)
+        .send({ error: "invalid_demand_network_request" });
     const transactionId = service.createDemandNetworkDemo(parsed.data);
     return reply.status(202).send({
       transactionId,
@@ -100,7 +124,9 @@ export function buildApp(
     services: service.listActiveServices(),
   }));
 
-  app.get("/api/inbox", async () => ({ messages: service.listInboxMessages() }));
+  app.get("/api/inbox", async () => ({
+    messages: service.listInboxMessages(),
+  }));
 
   app.get("/api/inbox/events", async (request, reply) => {
     reply.hijack();
@@ -116,30 +142,51 @@ export function buildApp(
       reply.raw.write(`event: ${update.type}\n`);
       reply.raw.write(`data: ${JSON.stringify(update)}\n\n`);
     });
-    const heartbeat = setInterval(() => reply.raw.write(": heartbeat\n\n"), 15_000);
-    request.raw.on("close", () => { clearInterval(heartbeat); unsubscribe(); });
+    const heartbeat = setInterval(
+      () => reply.raw.write(": heartbeat\n\n"),
+      15_000,
+    );
+    request.raw.on("close", () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    });
   });
 
-  app.post<{ Params: { id: string } }>("/api/inbox/:id/memory", async (request, reply) => {
-    const parsed = z.object({ recommended: z.boolean() }).safeParse(request.body);
-    if (!parsed.success) return reply.status(400).send({ error: "invalid_memory_decision" });
-    const message = service.updateInboxMemory(request.params.id, parsed.data.recommended);
-    if (!message) return reply.status(404).send({ error: "inbox_message_not_found" });
-    return message;
-  });
+  app.post<{ Params: { id: string } }>(
+    "/api/inbox/:id/memory",
+    async (request, reply) => {
+      const parsed = z
+        .object({ recommended: z.boolean() })
+        .safeParse(request.body);
+      if (!parsed.success)
+        return reply.status(400).send({ error: "invalid_memory_decision" });
+      const message = service.updateInboxMemory(
+        request.params.id,
+        parsed.data.recommended,
+      );
+      if (!message)
+        return reply.status(404).send({ error: "inbox_message_not_found" });
+      return message;
+    },
+  );
 
-  app.post<{ Params: { id: string } }>("/api/inbox/:id/archive", async (request, reply) => {
-    const message = service.archiveInboxMessage(request.params.id);
-    if (!message) return reply.status(404).send({ error: "inbox_message_not_found" });
-    return message;
-  });
+  app.post<{ Params: { id: string } }>(
+    "/api/inbox/:id/archive",
+    async (request, reply) => {
+      const message = service.archiveInboxMessage(request.params.id);
+      if (!message)
+        return reply.status(404).send({ error: "inbox_message_not_found" });
+      return message;
+    },
+  );
 
   app.post<{ Params: { id: string } }>(
     "/api/active-services/:id/trigger",
     async (request, reply) => {
       try {
         const transactionId = service.triggerActiveService(request.params.id);
-        if (!transactionId) return reply.status(404).send({ error: "active_service_not_found" });
+        if (!transactionId)
+          return reply.status(404).send({ error: "active_service_not_found" });
         return reply.status(202).send({
           transactionId,
           status: "queued",
@@ -147,7 +194,10 @@ export function buildApp(
           eventsUrl: `/api/transactions/${transactionId}/events`,
         });
       } catch (error) {
-        if (error instanceof Error && error.message === "active_service_not_triggerable") {
+        if (
+          error instanceof Error &&
+          error.message === "active_service_not_triggerable"
+        ) {
           return reply.status(409).send({ error: error.message });
         }
         throw error;
@@ -208,7 +258,7 @@ export function buildApp(
     });
   });
 
-  // 新增委托任务：消费者给出完整购物意图（可 @ 选择主动服务方式），
+  // 新增委托任务：买家给出完整购物意图（可 @ 选择主动服务方式），
   // 消费 Agent 全自动接管并完整走完真实 LLM 会话与交易，无需人工确认。
   app.post("/api/demo/consumer-delegation", async (request, reply) => {
     const parsed = consumerDelegationRequestSchema.safeParse(request.body);
@@ -247,7 +297,10 @@ export function buildApp(
         }
         return transaction;
       } catch (error) {
-        if (error instanceof Error && error.message === "transaction_not_awaiting_approval") {
+        if (
+          error instanceof Error &&
+          error.message === "transaction_not_awaiting_approval"
+        ) {
           return reply.status(409).send({ error: error.message });
         }
         throw error;

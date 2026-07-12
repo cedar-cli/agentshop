@@ -5,12 +5,12 @@
 
 ## 1. 项目目标
 
-AgentShop 是一个面向黑客松现场演示的 Agent Commerce 原型，展示消费者完全由 Buyer Agent 代理后，Buyer Agent、Seller Agent、供应链 Agent、Intent Router、LLM 与 RepChain 如何完成：
+AgentShop 是一个面向黑客松现场演示的 Agent Commerce 原型，展示买家完全由 Buyer Agent 代理后，Buyer Agent、Seller Agent、供应链 Agent、Intent Router、LLM 与 RepChain 如何完成：
 
 ```text
 需求表达
 -> 意图结构化
--> 商家发现与排名
+-> 卖家发现与排名
 -> 机器询价和证据核验
 -> 自动议价与订单
 -> 履约鉴证
@@ -71,7 +71,7 @@ SQLite EventStore + Hash Chain
 
 1. 后端真实 transaction
    - 用于真实 LLM 调用、Router、SSE、事件存储和 Hash Chain。
-   - 消费者真实采购、主动销售、需求网络和意图增长均使用此链路。
+   - 买家真实采购、主动销售、需求网络和意图增长均使用此链路。
 
 2. 前端 Zustand 模拟世界
    - 用于网络拓扑、信用树、生态演化和规模化 Agent 世界展示。
@@ -83,7 +83,7 @@ SQLite EventStore + Hash Chain
 agentshop/
 |- src/
 |  |- components/
-|  |  |- consumer/       消费者端
+|  |  |- consumer/       买家端
 |  |  |- merchant/       商家端
 |  |  |- topology/       网络拓扑
 |  |  `- shared/         顶栏、回放、信用链等公共组件
@@ -94,7 +94,7 @@ agentshop/
 |- server/
 |  |- src/
 |  |  |- agents/         Buyer/Seller 等 Agent
-|  |  |- app/            TransactionService、Inbox、商家投影
+|  |  |- app/            TransactionService、Inbox、卖家投影
 |  |  |- llm/            OpenAI Agent 与 fallback
 |  |  |- protocol/       事件类型和 Zod Schema
 |  |  |- router/         EventRouter
@@ -107,12 +107,12 @@ agentshop/
 `- README.md
 ```
 
-## 5. 消费者端功能
+## 5. 买家端功能
 
 ### 5.1 消费 Agent
 
 - 展示购买历史和当前委托。
-- 展示约束、候选商家、评分、议价、订单、履约和鉴证事件。
+- 展示约束、候选卖家、评分、议价、订单、履约和鉴证事件。
 - 支持记录回放。
 - 支持价格、时效、品质、售后权重的反事实推演。
 
@@ -146,7 +146,7 @@ agentshop/
 - 自动完成组合议价。
 - 自动下单并更新库存。
 - 人类交互次数为 0。
-- 完成摘要进入消费者 Inbox。
+- 完成摘要进入买家 Inbox。
 
 ### 5.4 主动服务
 
@@ -161,11 +161,11 @@ agentshop/
 
 ### 5.5 Inbox
 
-- 接收主动服务结果和商家提案。
+- 接收主动服务结果和卖家提案。
 - 展示事实核验、价值评分和 Agent 判断。
 - 支持自动完成、待决策和拦截分类。
 - 支持长期记忆建议。
-- 可从 Inbox 打开共享 transaction，查看消费者端和商家端共同使用的事件链。
+- 可从 Inbox 打开共享 transaction，查看买家端和商家端共同使用的事件链。
 
 ## 6. 商家端功能
 
@@ -189,14 +189,14 @@ agentshop/
 
 用于表达“需求反向组织供给和分销”。
 
-- 接收消费者端产生的真实 Intent。
-- 真实消费者 Intent 标记为 `LIVE C-AGENT`。
+- 接收买家端产生的真实 Intent。
+- 真实买家 Intent 标记为 `LIVE C-AGENT`。
 - LLM 将自然语言需求转换为结构化 Intent。
 - 展示市场聚合、选品预测、供应协商、模拟工厂、分销合约和规模成交。
 
 当前限制：
 
-- 消费者 Intent 可以进入网络，但最终选品候选仍是确定性 Fixture。
+- 买家 Intent 可以进入网络，但最终选品候选仍是确定性 Fixture。
 - 市场需求规模、工厂批次、分销网络和 GMV 是模拟数据。
 
 ### 6.3 主动销售
@@ -209,11 +209,11 @@ agentshop/
 - Closed Inbox 不向 Seller Agent 暴露画像字段。
 - Consumer Agent 自动比较候选商品。
 - 满足长期授权时自动成交，人类点击 0 次。
-- 提案和成交状态实时进入消费者 Inbox。
+- 提案和成交状态实时进入买家 Inbox。
 
 ### 6.4 意图增长
 
-用于表达“商家的商品能力从输掉的 Agent 交易中生长”。
+用于表达“卖家的商品能力从输掉的 Agent 交易中生长”。
 
 完整演示链路：
 
@@ -234,7 +234,7 @@ agentshop/
 11. 模拟履约写入 RepChain，展示 `+12 TRUST`。
 12. Intent Rank 从 `#3` 提升到 `#1`。
 
-该场景共生成 32 条 Hash Chain 事件，并会进入商家交易战情。
+该场景共生成 32 条 Hash Chain 事件，并会进入卖家交易战情。
 
 ### 6.5 销售机制
 
@@ -271,7 +271,7 @@ agentshop/
 
 ### 7.2 全网全景
 
-- 展示消费者、商家、供应链和工厂 Agent。
+- 展示买家、卖家、供应链和工厂 Agent。
 - 展示活跃交易链路。
 - 支持信用热力和供应链聚焦。
 - 支持刷分、伪造交易和违约风控演示。
@@ -288,9 +288,9 @@ agentshop/
 - 调度不同场景 workflow。
 - 管理状态：`queued / running / awaiting-approval / completed / failed`。
 - 将事件发布到 SSE。
-- 投影商家交易列表。
-- 投影消费者 Inbox。
-- 捕获消费者 Intent 并注入需求网络。
+- 投影卖家交易列表。
+- 投影买家 Inbox。
+- 捕获买家 Intent 并注入需求网络。
 
 ### 8.2 EventRouter
 
@@ -357,8 +357,8 @@ POST /api/transactions/:id/approve
 - Zod 协议校验。
 - SQLite 事件存储。
 - Hash Chain 计算和验证。
-- 消费者与商家共享 transaction。
-- 消费者 Intent 注入需求网络。
+- 买家与卖家共享 transaction。
+- 买家 Intent 注入需求网络。
 - Intent 提取和商品字段更新事件。
 - 订单与排名计算事件。
 
@@ -482,11 +482,11 @@ src/components/topology/TopologyModule.tsx
 
 ### P1：意图增长输入仍是预设对话
 
-消费者 Intent 已进入需求网络，但意图增长尚未直接消费需求网络和真实消费者 transaction。下一步应让 workflow 接收已有 Intent 或 transactionId。
+买家 Intent 已进入需求网络，但意图增长尚未直接消费需求网络和真实买家 transaction。下一步应让 workflow 接收已有 Intent 或 transactionId。
 
 ### P1：信用和排名没有回写网络拓扑
 
-`+12 TRUST` 和 `#1` 当前存在于后端事件和商家页面中，但未改变 Zustand 模拟世界中的商家节点。
+`+12 TRUST` 和 `#1` 当前存在于后端事件和卖家页面中，但未改变 Zustand 模拟世界中的卖家节点。
 
 ### P2：需求网络选品候选仍为 Fixture
 
@@ -500,13 +500,13 @@ src/components/topology/TopologyModule.tsx
 
 推荐现场演示顺序：
 
-1. 消费者端运行轻薄本真实 LLM 采购。
-2. 切换商家交易战情，展示同一 transaction。
-3. 运行主动销售，展示消费者 Inbox 自动收到并成交。
+1. 买家端运行轻薄本真实 LLM 采购。
+2. 切换卖家交易战情，展示同一 transaction。
+3. 运行主动销售，展示买家 Inbox 自动收到并成交。
 4. 运行需求网络，展示 `LIVE C-AGENT` Intent。
 5. 运行意图增长，展示落选、学习、商品升级、二次赢单和升榜。
 6. 最后进入网络拓扑，解释规模化 Agent 世界和 RepChain 信用机制。
 
 对外说明建议：
 
-> 我们模拟了市场规模和外部履约，但 LLM 意图提取、Agent Router、订单事件、消费者/商家共享 transaction 和 Hash Chain 都在现场真实运行。
+> 我们模拟了市场规模和外部履约，但 LLM 意图提取、Agent Router、订单事件、买家/卖家共享 transaction 和 Hash Chain 都在现场真实运行。

@@ -57,7 +57,7 @@ interface CompletedPayload {
 const STEPS = [
   ['01', '商品进入 Seller Agent'],
   ['02', '提取可验证特征'],
-  ['03', '发布 Product Passport'],
+  ['03', '发布商品通行证'],
   ['04', '匹配授权买家画像'],
   ['05', '通过 Consent Router'],
   ['06', 'Buyer Agent 自动比较'],
@@ -119,11 +119,11 @@ export function ActiveSalesRouter() {
         </header>
 
         <div className="active-sales-metrics">
-          <Metric label="Products online" value="24" unit="SKUs" />
-          <Metric label="Passport coverage" value={passport ? `${passport.coverageAfter}%` : '58%'} unit="fields" />
-          <Metric label="Authorized inboxes" value={buyers.length ? String(buyers.filter((buyer) => buyer.consent !== 'closed').length) : '0'} unit="matched" />
-          <Metric label="Proposals delivered" value={String(proposals.length)} unit="live" />
-          <Metric label="Auto purchases" value={completed ? '1' : '0'} unit={completed ? `$${completed.amountUsd}` : '$0'} success />
+          <Metric label="在售商品" value="24" unit="SKUs" />
+          <Metric label="通行证覆盖" value={passport ? `${passport.coverageAfter}%` : '58%'} unit="fields" />
+          <Metric label="授权收件箱" value={buyers.length ? String(buyers.filter((buyer) => buyer.consent !== 'closed').length) : '0'} unit="matched" />
+          <Metric label="已送达提案" value={String(proposals.length)} unit="live" />
+          <Metric label="自动成交" value={completed ? '1' : '0'} unit={completed ? `$${completed.amountUsd}` : '$0'} success />
         </div>
 
         {runtime.error && <div className="active-sales-error">{runtime.error}</div>}
@@ -145,11 +145,11 @@ export function ActiveSalesRouter() {
             <div className="workbench-product"><span>NB-401</span><div><strong>Newborn CalmSleep Kit</strong><small>{passport?.summary ?? '商品页仍以人类营销文案为主，等待 Agent 提取可验证字段。'}</small></div><b>{passport ? '92%' : '58%'}</b></div>
             <div className="agent-pipeline">
               <PipelineNode active={step >= 2} icon={<Sparkles size={13} />} label="特征提取" />
-              <PipelineNode active={step >= 3} icon={<BadgeCheck size={13} />} label="Passport" />
+              <PipelineNode active={step >= 3} icon={<BadgeCheck size={13} />} label="通行证" />
               <PipelineNode active={step >= 4} icon={<Route size={13} />} label="画像匹配" />
             </div>
             <div className={`passport-panel ${passport ? 'ready' : ''}`}>
-              <header><div><strong>Product Passport</strong><small>{passport ? `PUBLISHED · ${passport.generatedBy.toUpperCase()}` : 'DRAFT v2.0'}</small></div><span>{passport ? '58% → 92%' : 'WAITING'}</span></header>
+              <header><div><strong>商品通行证</strong><small>{passport ? `PUBLISHED · ${passport.generatedBy.toUpperCase()}` : 'DRAFT v2.0'}</small></div><span>{passport ? '58% → 92%' : 'WAITING'}</span></header>
               <div className="feature-list">
                 {(passport?.features ?? ['材料待结构化', '证据待绑定', 'SLA 待量化', '退货待机器化']).map((feature) => <span key={feature}>{feature}</span>)}
               </div>
