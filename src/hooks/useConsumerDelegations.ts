@@ -10,6 +10,8 @@ import type { LivePhase } from '../components/live/useTransactionStream'
 const DELEGATION_EVENTS = [
   'laptop.purchase.requested',
   'laptop.intent.structured',
+  // 通用委托真实搜索命中事件：SSE 必须登记此类型，否则前端收不到「搜索命中」这一步
+  'delegation.search.completed',
   'laptop.proposal.submitted',
   'laptop.seller.rejected',
   'laptop.seller.selected',

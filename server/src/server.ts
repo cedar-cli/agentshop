@@ -6,6 +6,7 @@ import { OpenAIProposalGenerator } from "./llm/openai-proposal-generator.js";
 import { OpenAICounterNegotiator } from "./llm/openai-counter-negotiator.js";
 import { OpenAIEvidenceAnswerGenerator } from "./llm/openai-evidence-answer-generator.js";
 import { OpenAILaptopAgent } from "./llm/openai-laptop-agent.js";
+import { OpenAIDelegationAgent } from "./llm/openai-delegation-agent.js";
 import { OpenAIActiveSalesAgent } from "./llm/openai-active-sales-agent.js";
 import { OpenAIDemandNetworkAgent } from "./llm/openai-demand-network-agent.js";
 import { OpenAIIntentGrowthAgent } from "./llm/openai-intent-growth-agent.js";
@@ -55,6 +56,8 @@ const service = new TransactionService({
   // 只有 DEMO_LLM_ENABLED=true 时 Seller C 才实时调用 gpt-5.6-luna；否则规则兜底
   sellerCAnswerGenerator: evidenceAnswerGenerator,
   laptopLlmAgent: new OpenAILaptopAgent(),
+  // 新建委托任务的真实搜索采购工作流用；LLM 不可用时工作流内部自动退回确定性兜底
+  delegationLlmAgent: new OpenAIDelegationAgent(),
   activeSalesLlmAgent: new OpenAIActiveSalesAgent(),
   activeSalesDecisionDelayMs: 1500,
   demandNetworkLlmAgent: new OpenAIDemandNetworkAgent(),
