@@ -25,6 +25,8 @@ interface LaptopProposalPayload {
   metrics: DemoOffer["metrics"];
   reasoning: string;
   generatedBy: "llm" | "fallback";
+  // 商品首图 URL（可选）：通用委托候选携带真实商品图；笔记本场景缺省
+  image?: string;
 }
 
 interface LaptopSelectionPayload {
@@ -111,6 +113,7 @@ export function adaptLaptopPurchase(
     selected: selection?.sellerId === proposal.sellerId,
     reason: proposal.reasoning,
     metrics: proposal.metrics,
+    image: proposal.image,
   }));
 
   return {
@@ -171,12 +174,23 @@ function adaptLaptopEvent(event: StoredEvent): DemoEvent {
         query: string;
         source: "catalog" | "fallback";
         hitCount: number;
-        hits: Array<{ title: string; shopName: string; priceMin: number; priceMax: number }>;
+        hits: Array<{
+          title: string;
+          shopName: string;
+          priceMin: number;
+          priceMax: number;
+          image?: string;
+        }>;
       }>(event)!;
       const preview = payload.hits
         .slice(0, 3)
         .map((h) => `${h.shopName}·¥${h.priceMin.toLocaleString()}`)
         .join(" / ");
+      // 取召回商品里前 6 张非空图作为缩略图，直观体现「真的搜到了真实商品」
+      const images = payload.hits
+        .map((h) => h.image)
+        .filter((url): url is string => Boolean(url))
+        .slice(0, 6);
       return {
         ...common,
         kind: "comparison",
@@ -188,6 +202,7 @@ function adaptLaptopEvent(event: StoredEvent): DemoEvent {
             ? "来自真实商品数据集的 FTS5 全文检索结果。"
             : "商品库不可用，回退到内置候选。",
         origin: "rule",
+        images,
       };
     }
     case "laptop.intent.structured": {

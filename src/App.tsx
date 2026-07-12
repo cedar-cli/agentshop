@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { startClock } from './core/store'
 import { TopBar, type ModuleKey } from './components/shared/TopBar'
 import { ChainFeed } from './components/shared/ChainFeed'
+import { ImageLightbox } from './components/shared/ImageLightbox'
 import { ConsumerModule } from './components/consumer/ConsumerModule'
 import { TopologyModule } from './components/topology/TopologyModule'
 import { MerchantModule } from './components/merchant/MerchantModule'
@@ -36,6 +37,8 @@ export function App() {
         </main>
         {active === 'topology' && <ChainFeed />}
       </div>
+      {/* 全局图片灯箱：挂载一次，供任意组件通过 openImageLightbox 放大查看图片 */}
+      <ImageLightbox />
     </>
   )
 }

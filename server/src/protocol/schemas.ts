@@ -120,6 +120,8 @@ export const delegationSearchCompletedSchema = z.object({
       category: z.string(),
       priceMin: z.number().min(0),
       priceMax: z.number().min(0),
+      // 商品首图 URL；回退到写死卖家时无真实图，故允许空串。
+      image: z.string(),
     }),
   ),
 });
@@ -156,6 +158,8 @@ export const laptopProposalSchema = z.object({
   nationalWarranty: z.boolean(),
   reputation: z.number().min(0).max(100),
   metrics: laptopMetricsSchema,
+  // 商品首图 URL（可选）：通用委托带真实商品图；笔记本场景不产出，故可缺省。
+  image: z.string().max(500).optional(),
   reasoning: z.string().min(1).max(240),
   generatedBy: z.enum(["llm", "fallback"]),
   fallbackReason: z.string().max(240).optional(),

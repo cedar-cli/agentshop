@@ -230,6 +230,9 @@ export interface DelegationSearchCompleted {
     category: string;
     priceMin: number;
     priceMax: number;
+    // 商品首图 URL（用于「真实商品检索命中」这一步在决策日志里挂缩略图）。
+    // 可能为空串——回退到写死卖家时没有真实商品图。
+    image: string;
   }>;
 }
 
@@ -268,6 +271,9 @@ export interface LaptopProposal {
     afterSales: number;
     price: number;
   };
+  // 商品首图 URL（可选）：通用委托复用本类型时带上真实商品图，供前端候选卡片展示。
+  // 设为可选是因为笔记本场景（laptop-purchase）不产出图片，且现有测试的报价负载不含此字段。
+  image?: string;
   reasoning: string;
   generatedBy: "llm" | "fallback";
   fallbackReason?: string;

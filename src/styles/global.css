@@ -173,6 +173,56 @@ a {
   text-align: right;
 }
 
+/* 全局图片灯箱：点击缩略图后铺满视口的遮罩 + 居中放大图 */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5vmin;
+  background: oklch(20% 0.02 300 / 0.72);
+  backdrop-filter: blur(4px);
+  cursor: zoom-out;
+  animation: lightbox-fade var(--dur-normal, 180ms) var(--ease-out-expo, ease-out);
+}
+
+.lightbox-image {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 24px 80px oklch(20% 0.02 300 / 0.55);
+  cursor: default;
+}
+
+.lightbox-close {
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 999px;
+  color: var(--color-void);
+  background: oklch(40% 0.02 300 / 0.55);
+  cursor: pointer;
+  transition: background var(--dur-normal, 180ms) ease;
+}
+
+.lightbox-close:hover {
+  background: oklch(40% 0.02 300 / 0.8);
+}
+
+@keyframes lightbox-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
