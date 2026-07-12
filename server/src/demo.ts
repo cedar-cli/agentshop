@@ -25,6 +25,7 @@ const labels: Record<AgentEventType, string> = {
   "seller.score.updated": "更新商家评分向量",
   "order.authorized": "买家授权自动下单",
   "receipt.issued": "平台签发实时回执",
+  "delegation.search.completed": "委托真实搜索命中候选",
   "laptop.purchase.requested": "用户提出轻薄本委托",
   "laptop.intent.structured": "买家结构化轻薄本意图",
   "laptop.proposal.submitted": "轻薄本商家提交报价",

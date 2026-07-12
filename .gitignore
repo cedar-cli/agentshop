@@ -10,3 +10,13 @@ coverage/
 test-results/
 playwright-report/
 *.png
+
+# 环境变量（含真实 API Key，禁止提交）
+.env
+server/.env
+
+# 商品数据集（134MB，超 GitHub 单文件 100MB 上限，禁止提交）
+fine_items_eval_train_all.json
+
+# 预处理生成物：SQLite 商品检索库（由 server/scripts/build-catalog.ts 生成）
+server/data/
