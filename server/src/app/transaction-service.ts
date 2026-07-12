@@ -13,6 +13,7 @@ import type { EvidenceAnswerGenerator } from "../agents/evidence-answer-generato
 import type { ProposalGenerator } from "../agents/proposal-generator.js";
 import type { CounterNegotiator } from "../agents/counter-negotiator.js";
 import type { LaptopLlmAgent } from "../llm/laptop-agent.js";
+import type { DelegationLlmAgent } from "../llm/delegation-agent.js";
 import type { ActiveSalesLlmAgent } from "../llm/active-sales-agent.js";
 import type { DemandNetworkLlmAgent } from "../llm/demand-network-agent.js";
 import type { DemandNeedFact } from "../llm/demand-network-agent.js";
@@ -44,6 +45,7 @@ import {
   runLaptopPurchaseUntilApproval,
   type LaptopApprovalState,
 } from "../scenario/laptop-purchase-workflow.js";
+import { runDelegationPurchase } from "../scenario/delegation-purchase-workflow.js";
 import {
   createRestockIntent,
   runHouseholdRestockWorkflow,
@@ -127,6 +129,9 @@ export interface TransactionServiceOptions {
   // server.ts 依 DEMO_LLM_ENABLED 决定是否传入 OpenAI 实现；测试可传桩实现。
   sellerCAnswerGenerator?: EvidenceAnswerGenerator;
   laptopLlmAgent?: LaptopLlmAgent;
+  // 通用委托 LLM Agent：新建委托任务走真实搜索采购工作流时使用。
+  // 缺省则委托工作流全程走确定性兜底（仍会真实检索商品，只是不调 LLM 生成文案）。
+  delegationLlmAgent?: DelegationLlmAgent;
   activeSalesLlmAgent?: ActiveSalesLlmAgent;
   activeSalesDecisionDelayMs?: number;
   demandNetworkLlmAgent?: DemandNetworkLlmAgent;
@@ -143,6 +148,7 @@ export class TransactionService {
   // Demo 逐事件播放间隔（毫秒），构造时确定，全部 Demo 交易共用
   private readonly newbornBeddingStepDelayMs: number;
   private readonly laptopLlmAgent?: LaptopLlmAgent;
+  private readonly delegationLlmAgent?: DelegationLlmAgent;
   private readonly activeSalesLlmAgent?: ActiveSalesLlmAgent;
   private readonly activeSalesDecisionDelayMs: number;
   private readonly demandNetworkLlmAgent?: DemandNetworkLlmAgent;
@@ -170,6 +176,7 @@ export class TransactionService {
     const profiles = options.profiles ?? sellerProfiles;
     this.newbornBeddingStepDelayMs = options.newbornBeddingStepDelayMs ?? 0;
     this.laptopLlmAgent = options.laptopLlmAgent;
+    this.delegationLlmAgent = options.delegationLlmAgent;
     this.activeSalesLlmAgent = options.activeSalesLlmAgent;
     this.activeSalesDecisionDelayMs = Math.max(
       0,
@@ -524,20 +531,17 @@ export class TransactionService {
         this.publishMerchantTransaction(transactionId);
         return;
       } else if (transaction.kind === "consumer-delegation") {
-        // 委托任务：跑通与 laptop-demo 相同的真实 LLM 采购工作流，
-        // 但不在此处暂停等待人工确认，而是由消费 Agent 直接在授权内自动下单，
-        // 一次性走完下单、履约、鉴证，满足“全自动完成一切交易”。
-        const approval = await runLaptopPurchaseUntilApproval(
+        // 委托任务：走「通用真实搜索采购」工作流——先按用户意图从数据集检索真实商品作为候选，
+        // 再对真实候选比较、议价、下单、履约、上链，全程无需人工确认，由消费 Agent 在授权内自动完成。
+        // serviceMode（@ 选择的主动服务方式）本期透传记录，不改变工作流行为。
+        const delegationRequest = transaction.request as ConsumerDelegationRequest;
+        const serviceMode = delegationRequest.serviceMode ?? "auto";
+        await runDelegationPurchase(
           this.router,
           transactionId,
-          (transaction.request as ConsumerDelegationRequest).requestText,
-          this.laptopLlmAgent,
-        );
-        await completeApprovedLaptopPurchase(
-          this.router,
-          transactionId,
-          approval,
-          "agent",
+          delegationRequest.requestText,
+          serviceMode,
+          this.delegationLlmAgent,
         );
       } else if (transaction.kind === "household-restock-demo") {
         await runHouseholdRestockWorkflow(

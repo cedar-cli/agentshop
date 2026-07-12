@@ -126,12 +126,19 @@ export function adaptLaptopPurchase(
     statusLabel: completed ? "已鉴证" : approval ? "待你确认" : "Agent 采购中",
     date: completed ? "刚刚" : "进行中",
     constraints: intent
-      ? [
-          `≤${intent.maxWeightKg}kg`,
-          `续航 ≥${intent.minBatteryHours}h`,
-          `${Math.ceil(intent.deadlineHours / 24)} 天内送达`,
-          intent.requiresNationalWarranty ? "全国联保" : "保修可选",
-        ]
+      ? // maxWeightKg=999 是通用委托意图的哨兵值：说明这不是轻薄本场景，
+        // 此时只展示预算与交期这类通用约束，不显示重量/续航等笔记本专属项。
+        intent.maxWeightKg >= 999
+        ? [
+            `预算 ≤¥${(intent.budgetCny ?? base.budget).toLocaleString()}`,
+            `${Math.ceil(intent.deadlineHours / 24)} 天内送达`,
+          ]
+        : [
+            `≤${intent.maxWeightKg}kg`,
+            `续航 ≥${intent.minBatteryHours}h`,
+            `${Math.ceil(intent.deadlineHours / 24)} 天内送达`,
+            intent.requiresNationalWarranty ? "全国联保" : "保修可选",
+          ]
       : base.constraints,
     result: completed
       ? "人工确认后完成订单；物流与鉴证为明确标注的 Demo 模拟事件。"
@@ -155,6 +162,31 @@ function adaptLaptopEvent(event: StoredEvent): DemoEvent {
         actor: "你",
         title: "提出购买委托",
         body: payload.requestText,
+        origin: "rule",
+      };
+    }
+    case "delegation.search.completed": {
+      // 通用委托专属：一次真实商品检索的结果快照，渲染成「搜索命中候选」决策日志行
+      const payload = typedPayload<{
+        query: string;
+        source: "catalog" | "fallback";
+        hitCount: number;
+        hits: Array<{ title: string; shopName: string; priceMin: number; priceMax: number }>;
+      }>(event)!;
+      const preview = payload.hits
+        .slice(0, 3)
+        .map((h) => `${h.shopName}·¥${h.priceMin.toLocaleString()}`)
+        .join(" / ");
+      return {
+        ...common,
+        kind: "comparison",
+        actor: "C-Agent",
+        title: "真实商品检索命中",
+        body: `按「${payload.query}」检索商品库，召回 ${payload.hitCount} 个真实候选：${preview}${payload.hits.length > 3 ? " 等" : ""}。`,
+        evidence:
+          payload.source === "catalog"
+            ? "来自真实商品数据集的 FTS5 全文检索结果。"
+            : "商品库不可用，回退到内置候选。",
         origin: "rule",
       };
     }
@@ -281,7 +313,7 @@ function adaptLaptopEvent(event: StoredEvent): DemoEvent {
         origin: "simulation",
       };
     }
-    default: {
+    case "laptop.attestation.issued": {
       const payload = typedPayload<{
         merchantCreditBefore: number;
         merchantCreditAfter: number;
@@ -292,8 +324,19 @@ function adaptLaptopEvent(event: StoredEvent): DemoEvent {
         actor: "RepChain Demo",
         title: "模拟鉴证写入哈希链",
         body: "时效、规格与包装检查结果已写入本地可验证事件链。",
-        impact: `卖家信用 ${payload.merchantCreditBefore} → ${payload.merchantCreditAfter}`,
+        impact: `商家信用 ${payload.merchantCreditBefore} → ${payload.merchantCreditAfter}`,
         origin: "simulation",
+      };
+    }
+    default: {
+      // 未知事件类型的安全兜底：不访问特定字段，避免运行时崩溃
+      return {
+        ...common,
+        kind: "agent",
+        actor: "C-Agent",
+        title: event.type,
+        body: "",
+        origin: "rule",
       };
     }
   }

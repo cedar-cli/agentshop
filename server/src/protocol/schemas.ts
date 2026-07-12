@@ -67,8 +67,10 @@ const confirmedOrderSchema = z.object({
   status: z.literal("confirmed"),
 });
 
+// requestText 下限放宽到 4，与 consumerDelegationRequestSchema 对齐：
+// 通用委托复用 laptop.purchase.requested 事件，用户可能只输入「买乳胶枕」这类 4-7 字短意图。
 export const laptopPurchaseRequestSchema = z.object({
-  requestText: z.string().min(8).max(500),
+  requestText: z.string().min(4).max(500),
 });
 
 // 买家主动服务方式：auto=全权代买（默认，无需 @）；其余对应四类主动服务场景。
@@ -92,6 +94,34 @@ const laptopPrioritiesSchema = z.object({
   spec: z.number().min(0).max(100),
   price: z.number().min(0).max(100),
   afterSales: z.number().min(0).max(100),
+});
+
+// 通用委托意图（LLM 结构化输出用）：mustHave 表达通用硬约束，四维偏好和约为 100。
+// 供 openai-delegation-agent 解析自由购物文本，适配任意品类。
+export const delegationIntentSchema = z.object({
+  product: z.string().min(1).max(120),
+  budgetCny: z.number().positive(),
+  deadlineHours: z.number().positive(),
+  mustHave: z.array(z.string().min(1)).max(8),
+  priorities: laptopPrioritiesSchema,
+});
+
+// 委托搜索命中事件负载：记录一次真实检索的查询、来源、命中数与候选摘要。
+export const delegationSearchCompletedSchema = z.object({
+  query: z.string().min(1).max(200),
+  serviceMode: consumerServiceModeSchema,
+  source: z.enum(["catalog", "fallback"]),
+  hitCount: z.number().int().min(0),
+  hits: z.array(
+    z.object({
+      asin: z.string(),
+      title: z.string().min(1),
+      shopName: z.string(),
+      category: z.string(),
+      priceMin: z.number().min(0),
+      priceMax: z.number().min(0),
+    }),
+  ),
 });
 
 export const laptopIntentSchema = z.object({
@@ -945,6 +975,16 @@ export const agentEventSchema = z.discriminatedUnion("type", [
     timestamp: z.iso.datetime({ offset: true }),
     causationId: z.string().optional(),
     payload: liveReceiptSchema,
+  }),
+  z.object({
+    id: z.string().min(1),
+    transactionId: z.string().min(1),
+    type: z.literal("delegation.search.completed"),
+    source: z.string().min(1),
+    target: z.string().optional(),
+    timestamp: z.iso.datetime({ offset: true }),
+    causationId: z.string().optional(),
+    payload: delegationSearchCompletedSchema,
   }),
   z.object({
     id: z.string().min(1),

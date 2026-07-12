@@ -22,6 +22,9 @@ export const EVENT_TYPES = [
   "order.authorized",
   // 平台在授权成交后签发一张实时电子回执（含金额、交期承诺与证据快照哈希）
   "receipt.issued",
+  // ---- 通用委托真实搜索：消费者委托任务从数据集检索真实商品作为候选 ----
+  // 复用下方 laptop.* 事件走完比较/议价/下单/上链，仅在开头多这一步「搜索命中」。
+  "delegation.search.completed",
   // ---- 出差轻薄本：自然语言委托、受约束报价、人工确认与模拟履约 ----
   "laptop.purchase.requested",
   "laptop.intent.structured",
@@ -175,6 +178,59 @@ export type ConsumerServiceMode =
 export interface ConsumerDelegationRequest {
   requestText: string;
   serviceMode?: ConsumerServiceMode;
+}
+
+/**
+ * 通用委托意图：把消费者的自由购物文本解析成的结构化意图。
+ *
+ * 相比 LaptopIntent 去掉了笔记本专用字段（maxWeightKg/minBatteryHours/requiresNationalWarranty），
+ * 改用通用的 mustHave（必须命中的关键属性/关键词）表达硬约束，适配任意品类。
+ * 四项 priorities 之和应为 100，供候选商品打分加权。
+ */
+export interface DelegationIntent {
+  // 原始购物文本
+  requestText: string;
+  // 归一化后的商品描述（用于检索关键词与展示，如「儿童天然乳胶枕」）
+  product: string;
+  // 预算上限（元）。无法判断时由 LLM 给保守估计
+  budgetCny: number;
+  // 交期上限（小时）。通用默认 72
+  deadlineHours: number;
+  // 必须命中的关键属性/关键词（硬约束）：候选商品需在标题/属性里覆盖，否则淘汰
+  mustHave: string[];
+  // 四维偏好权重（和为 100），用于候选打分
+  priorities: {
+    timeliness: number;
+    spec: number;
+    price: number;
+    afterSales: number;
+  };
+  generatedBy: "llm" | "fallback";
+  fallbackReason?: string;
+}
+
+/**
+ * 委托搜索命中：一次真实商品检索的结果快照。
+ * 发布在委托工作流最前面，向前端说明「按你的输入真的搜了，命中多少、召回了哪些」。
+ */
+export interface DelegationSearchCompleted {
+  // 送去检索的查询关键词（归一化后的商品描述）
+  query: string;
+  // 主动服务方式（透传，本期不改变行为，仅记录）
+  serviceMode: ConsumerServiceMode;
+  // 数据来源标记：catalog=真实数据集检索；fallback=库缺失回退写死卖家
+  source: "catalog" | "fallback";
+  // 召回商品数（= 候选卖家数）
+  hitCount: number;
+  // 召回的候选商品摘要（用于决策日志展示）
+  hits: Array<{
+    asin: string;
+    title: string;
+    shopName: string;
+    category: string;
+    priceMin: number;
+    priceMax: number;
+  }>;
 }
 
 export interface LaptopIntent {
@@ -968,6 +1024,7 @@ export interface EventPayloadMap {
   "seller.score.updated": SellerScoreVector;
   "order.authorized": OrderAuthorized;
   "receipt.issued": LiveReceipt;
+  "delegation.search.completed": DelegationSearchCompleted;
   "laptop.purchase.requested": LaptopPurchaseRequested;
   "laptop.intent.structured": LaptopIntent;
   "laptop.proposal.submitted": LaptopProposal;
