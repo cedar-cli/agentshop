@@ -3,7 +3,7 @@ import { minimumAllowedPrice } from "./proposal-generator.js";
 import type { SellerProfile } from "./seller-profiles.js";
 
 /**
- * 商家对一轮还价给出的决策结果（未落地成事件前的中间结构）。
+ * 卖家对一轮还价给出的决策结果（未落地成事件前的中间结构）。
  * finalPrice 为本轮谈判后的最终成交价，reasoning 为谈判话术。
  */
 export interface NegotiationDecision {
@@ -17,8 +17,8 @@ export interface NegotiationDecision {
  */
 export interface CounterNegotiator {
   /**
-   * 根据商家画像、买家还价与原始报价，决定本轮最终成交价与话术。
-   * @param profile 商家画像（含成本、最低利润率、经营策略）
+   * 根据卖家画像、买家还价与原始报价，决定本轮最终成交价与话术。
+   * @param profile 卖家画像（含成本、最低利润率、经营策略）
    * @param request 原始采购需求（含数量，用于换算成本底线）
    * @param offer   买家发起的还价（含原价与目标价）
    */
@@ -31,7 +31,7 @@ export interface CounterNegotiator {
 
 /**
  * 规则兜底的砍价决策。
- * 商家愿意让步，但绝不跌破成本底线（unitCost * quantity * (1 + minimumMargin)）：
+ * 卖家愿意让步，但绝不跌破成本底线（unitCost * quantity * (1 + minimumMargin)）：
  * - 若买家目标价仍在成本底线之上：接受目标价，让利到目标价；
  * - 若买家目标价击穿成本底线：只让步到成本底线，坚持不再退。
  * 用于 LLM 不可用或返回非法结果时保证 demo 不崩。
@@ -43,7 +43,7 @@ export function createFallbackDecision(
 ): NegotiationDecision {
   const floor = minimumAllowedPrice(profile, request);
 
-  // 让步不能低于成本底线，也不应高于商家自己的原始报价
+  // 让步不能低于成本底线，也不应高于卖家自己的原始报价
   const finalPrice = Math.min(
     offer.originalPrice,
     Math.max(offer.targetPrice, floor),
@@ -63,7 +63,7 @@ export function createFallbackDecision(
 
 /**
  * 校验一份砍价决策是否合法，非法则抛错（由调用方降级到兜底）。
- * 核心硬约束：最终价不得跌破成本底线，也不得高于商家原始报价（不许借还价涨价）。
+ * 核心硬约束：最终价不得跌破成本底线，也不得高于卖家原始报价（不许借还价涨价）。
  */
 export function validateNegotiationDecision(
   decision: NegotiationDecision,
@@ -74,7 +74,9 @@ export function validateNegotiationDecision(
   const floor = minimumAllowedPrice(profile, request);
 
   if (decision.finalPrice < floor) {
-    throw new Error(`${profile.sellerId} counter price is below its cost floor`);
+    throw new Error(
+      `${profile.sellerId} counter price is below its cost floor`,
+    );
   }
 
   if (decision.finalPrice > offer.originalPrice + 0.01) {

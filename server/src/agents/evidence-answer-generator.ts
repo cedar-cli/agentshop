@@ -13,10 +13,7 @@
  *  - 任何异常/超时/字段缺失/非法输出都必须能安全降级为规则回答，交易永不失败。
  */
 
-import type {
-  EvidenceQuestion,
-  ExecutableIntent,
-} from "../protocol/events.js";
+import type { EvidenceQuestion, ExecutableIntent } from "../protocol/events.js";
 import type { SellerScenario } from "../scenario/newborn-bedding.js";
 
 /**

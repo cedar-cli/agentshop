@@ -83,12 +83,12 @@ export function DemandNetwork() {
       </header>
 
       <div className="demand-market-strip">
-        <MarketMetric label="Live buyer agents" value="18,642" unit="SIMULATED" />
-        <MarketMetric label="Raw needs" value="128,460" unit="24H SNAPSHOT" />
-        <MarketMetric label="Structured intents" value={market ? market.simulatedMarketIntents.toLocaleString() : String(intents.length)} unit={market ? 'SIMULATED' : 'LIVE SAMPLE'} />
-        <MarketMetric label="Distributor reach" value={distributors.length ? '1,428' : '0'} unit={distributors.length ? 'SIMULATED' : 'AGENTS'} />
-        <MarketMetric label="Orders / GMV" value={orders ? String(orders.orderCount) : '0'} unit={orders ? `$${orders.gmvUsd.toLocaleString()}` : '$0'} success />
-        <div className="market-stage-counter"><span>SCENE</span><strong className="num">{String(stage).padStart(2, '0')} / 09</strong></div>
+        <MarketMetric label="活跃买家 Agent" value="18,642" unit="SIMULATED" />
+        <MarketMetric label="原始需求" value="128,460" unit="24H SNAPSHOT" />
+        <MarketMetric label="结构化意图" value={market ? market.simulatedMarketIntents.toLocaleString() : String(intents.length)} unit={market ? 'SIMULATED' : 'LIVE SAMPLE'} />
+        <MarketMetric label="分销触达" value={distributors.length ? '1,428' : '0'} unit={distributors.length ? 'SIMULATED' : 'AGENTS'} />
+        <MarketMetric label="订单 / GMV" value={orders ? String(orders.orderCount) : '0'} unit={orders ? `$${orders.gmvUsd.toLocaleString()}` : '$0'} success />
+        <div className="market-stage-counter"><span>场景</span><strong className="num">{String(stage).padStart(2, '0')} / 09</strong></div>
       </div>
 
       {runtime.error && <div className="active-sales-error">{runtime.error}</div>}

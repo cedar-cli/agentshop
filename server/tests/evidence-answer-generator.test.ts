@@ -22,11 +22,27 @@ import {
 
 // 五个询证问题（与工作流一致），供校验器测试使用
 const QUESTIONS: EvidenceQuestion[] = [
-  { id: "q-hypoallergenic-proof", prompt: "低敏声明的证据是什么？", expectedAnswer: "text" },
-  { id: "q-delivery-72h", prompt: "72 小时配送是否覆盖？", expectedAnswer: "boolean" },
-  { id: "q-return-policy", prompt: "皮肤不适如何退货？", expectedAnswer: "text" },
+  {
+    id: "q-hypoallergenic-proof",
+    prompt: "低敏声明的证据是什么？",
+    expectedAnswer: "text",
+  },
+  {
+    id: "q-delivery-72h",
+    prompt: "72 小时配送是否覆盖？",
+    expectedAnswer: "boolean",
+  },
+  {
+    id: "q-return-policy",
+    prompt: "皮肤不适如何退货？",
+    expectedAnswer: "text",
+  },
   { id: "q-price-premium", prompt: "为什么更贵？", expectedAnswer: "text" },
-  { id: "q-bundle-offer", prompt: "是否有 bundle 优惠？", expectedAnswer: "boolean" },
+  {
+    id: "q-bundle-offer",
+    prompt: "是否有 bundle 优惠？",
+    expectedAnswer: "boolean",
+  },
 ];
 
 /** 构造一份覆盖全部 5 个问题的合法回答。 */
@@ -83,7 +99,10 @@ describe("validateEvidenceAnswers · 收敛 LLM 原始输出", () => {
   });
 
   it("对回答做 trim 与长度截断", () => {
-    const answers = { ...fullAnswers(), "q-price-premium": `  ${"很贵".repeat(200)}  ` };
+    const answers = {
+      ...fullAnswers(),
+      "q-price-premium": `  ${"很贵".repeat(200)}  `,
+    };
     const cleaned = validateEvidenceAnswers(answers, QUESTIONS);
     // 去除首尾空白后不超过 240
     expect(cleaned["q-price-premium"]!.length).toBeLessThanOrEqual(240);

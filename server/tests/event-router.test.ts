@@ -50,7 +50,7 @@ describe("EventRouter", () => {
     ]);
     expect(events[4]?.payload).toMatchObject({ sellerId: "seller-b" });
 
-    // 砍价环节：买家向赢家 seller-b 发起还价，商家应答，最终订单价采用应答的成交价
+    // 砍价环节：买家向赢家 seller-b 发起还价，卖家应答，最终订单价采用应答的成交价
     const counterResponse = events[6];
     if (counterResponse?.type !== "counter.response") {
       throw new Error("Expected a counter.response event");

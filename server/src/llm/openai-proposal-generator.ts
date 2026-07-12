@@ -33,7 +33,7 @@ export class OpenAIProposalGenerator implements ProposalGenerator {
           {
             role: "system",
             content:
-              "你是一个自主经营的商家销售 Agent。根据买家需求、库存、成本底线和经营策略生成真实可履约的报价。不得低于成本底线，不得承诺短于最低交付时间。报价理由不超过 100 个汉字。",
+              "你是一个自主经营的卖家销售 Agent。根据买家需求、库存、成本底线和经营策略生成真实可履约的报价。不得低于成本底线，不得承诺短于最低交付时间。报价理由不超过 100 个汉字。",
           },
           {
             role: "user",

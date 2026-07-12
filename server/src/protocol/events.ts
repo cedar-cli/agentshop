@@ -4,7 +4,7 @@ export const EVENT_TYPES = [
   "seller.selected",
   // 买家在选标后对赢家发起的一轮还价（砍价请求）
   "counter.offer",
-  // 商家对还价的应答：接受或坚持底线
+  // 卖家对还价的应答：接受或坚持底线
   "counter.response",
   "order.confirmed",
   // ---- 新增：可执行意图与机器询证事件（不改变现有流程行为，仅扩展协议词汇表）----
@@ -126,9 +126,9 @@ export interface SellerSelection {
  * 买家选出赢家后，基于预算与市场最低价推算一个目标价，向赢家争取进一步让利。
  */
 export interface CounterOffer {
-  // 被还价的目标商家
+  // 被还价的目标卖家
   sellerId: string;
-  // 商家原始报价（用于对照让步幅度）
+  // 卖家原始报价（用于对照让步幅度）
   originalPrice: number;
   // 买家期望达成的目标价
   targetPrice: number;
@@ -137,18 +137,18 @@ export interface CounterOffer {
 }
 
 /**
- * 商家对还价的应答。
- * 商家可以接受买家目标价、部分让步，或坚持原价拒绝让步——但任何情况下都不得跌破成本底线。
+ * 卖家对还价的应答。
+ * 卖家可以接受买家目标价、部分让步，或坚持原价拒绝让步——但任何情况下都不得跌破成本底线。
  */
 export interface CounterResponse {
   sellerId: string;
-  // 商家是否作出了让步（最终价低于原始报价即视为让步）
+  // 卖家是否作出了让步（最终价低于原始报价即视为让步）
   accepted: boolean;
   // 本轮谈判后的最终成交价
   finalPrice: number;
   // 相对原始报价的让利金额（originalPrice - finalPrice，>= 0）
   concession: number;
-  // 应答话术（用于 demo 展示商家 Agent 的谈判姿态）
+  // 应答话术（用于 demo 展示卖家 Agent 的谈判姿态）
   reasoning: string;
   // 应答由 LLM 生成还是规则兜底
   generatedBy: "llm" | "fallback";
@@ -167,13 +167,9 @@ export interface LaptopPurchaseRequested {
   requestText: string;
 }
 
-// 消费者主动服务方式（与 schemas.consumerServiceModeSchema 对应）。
+// 买家主动服务方式（与 schemas.consumerServiceModeSchema 对应）。
 export type ConsumerServiceMode =
-  | "auto"
-  | "restock"
-  | "scarce"
-  | "lowprice"
-  | "secondhand";
+  "auto" | "restock" | "scarce" | "lowprice" | "secondhand";
 
 // 新增委托任务请求：完整购物意图 + 可选主动服务方式。
 export interface ConsumerDelegationRequest {
@@ -407,7 +403,8 @@ export interface EvidenceRequirement {
   // 证据要求的稳定标识（如 "oeko-tex-cert"），供请求/提交/评分环节相互引用
   id: string;
   // 证据类别：认证 / 实验室检测报告 / 材质成分说明 / 图片 / 自证声明
-  kind: "certification" | "lab-report" | "material-spec" | "photo" | "attestation";
+  kind:
+    "certification" | "lab-report" | "material-spec" | "photo" | "attestation";
   // 人类可读的要求描述（如 "OEKO-TEX Standard 100 婴幼儿等级认证"）
   description: string;
   // 是否为硬性必需项（true 时缺失将直接判为不合格）
@@ -732,7 +729,12 @@ export interface DemandIntentStructured {
 export interface DemandMarketAggregated {
   sampleSize: number;
   simulatedMarketIntents: number;
-  clusters: Array<{ label: string; sampleHits: number; simulatedDemand: number; growthPercent: number }>;
+  clusters: Array<{
+    label: string;
+    sampleHits: number;
+    simulatedDemand: number;
+    growthPercent: number;
+  }>;
   simulated: true;
 }
 
@@ -805,24 +807,151 @@ export interface DistributionCommissionReleased {
 }
 
 export interface IntentGrowthMarketRanked {
-  intentId: string; buyerName: string; title: string; currentSellerId: string;
-  currentRank: number; currentScore: number;
-  candidates: Array<{ sellerId: string; displayName: string; score: number; rank: number }>;
+  intentId: string;
+  buyerName: string;
+  title: string;
+  currentSellerId: string;
+  currentRank: number;
+  currentScore: number;
+  candidates: Array<{
+    sellerId: string;
+    displayName: string;
+    score: number;
+    rank: number;
+  }>;
 }
-export interface IntentGrowthSellerShortlisted { intentId: string; sellerId: string; shortlistSize: number; rank: number; reason: string }
-export interface IntentGrowthDialogueRound { buyerId: string; buyerName: string; context: string; round: number; role: "buyer" | "seller"; text: string }
-export interface IntentGrowthSellerLost { intentId: string; sellerId: string; winnerId: string; finalRank: number; reason: string; uncoveredFields: string[] }
-export interface IntentGrowthLearningStarted { conversationGroups: number; dialogueRounds: number; observedSignals: number; simulatedSignalVolume: true; generatedBy: "llm" | "fallback"; fallbackReason?: string }
-export interface IntentGrowthIntentExtracted { key: "wash_temp" | "use_context" | "wash_cycles" | "bulk_sla"; label: string; value: string; confidence: number; productField: string; evidence: string[]; status: "ready"; generatedBy: "llm" | "fallback"; fallbackReason?: string }
-export interface IntentGrowthGapDetected { productId: string; coverageBefore: number; missingFields: string[]; summary: string; generatedBy: "llm" | "fallback" }
-export interface IntentGrowthProductFieldUpdated { productId: string; field: string; value: string; status: "written"; version: "v2.2"; coverageAfter: number; evidence: string[] }
-export interface IntentGrowthProductVersionPublished { productId: string; productName: string; previousVersion: "v2.1"; version: "v2.2"; coverageBefore: number; coverageAfter: number; writtenFields: string[]; summary: string }
-export interface IntentGrowthBuyerRematched { intentId: string; buyerName: string; quantity: number; deadlineDays: number; requirements: string[]; scoreBefore: number; scoreAfter: number; rankBefore: number; rankAfter: number; scoreBreakdown: { context: number; wash: number; durability: number; bulkSla: number } }
-export interface IntentGrowthQuoteRequested { quoteId: string; quantity: number; budgetUsd: number; requestedDeliveryDays: number; requestedTerms: string[] }
-export interface IntentGrowthTermsNegotiated { quoteId: string; unitPriceUsd: number; quantity: number; deliveryDays: number; delayPenaltyPercent: number; totalUsd: number; messages: string[] }
-export interface IntentGrowthOrderSigned { orderId: string; buyerName: string; quantity: number; unitPriceUsd: number; totalUsd: number; deliveryDays: number; delayPenaltyPercent: number; status: "signed" }
-export interface IntentGrowthAttestationIssued { attestationId: string; deliveredInDays: number; evidenceVerified: boolean; slaHonored: boolean; afterSalesExecutable: boolean; trustDelta: number; simulatedFulfillment: true }
-export interface IntentGrowthRankUpdated { rankBefore: number; rankAfter: number; scoreBefore: number; scoreAfter: number; shortlistRateBefore: number; shortlistRateAfter: number; ordersPerDayBefore: number; ordersPerDayAfter: number; projectedNewIntents: number; simulatedProjection: true }
+export interface IntentGrowthSellerShortlisted {
+  intentId: string;
+  sellerId: string;
+  shortlistSize: number;
+  rank: number;
+  reason: string;
+}
+export interface IntentGrowthDialogueRound {
+  buyerId: string;
+  buyerName: string;
+  context: string;
+  round: number;
+  role: "buyer" | "seller";
+  text: string;
+}
+export interface IntentGrowthSellerLost {
+  intentId: string;
+  sellerId: string;
+  winnerId: string;
+  finalRank: number;
+  reason: string;
+  uncoveredFields: string[];
+}
+export interface IntentGrowthLearningStarted {
+  conversationGroups: number;
+  dialogueRounds: number;
+  observedSignals: number;
+  simulatedSignalVolume: true;
+  generatedBy: "llm" | "fallback";
+  fallbackReason?: string;
+}
+export interface IntentGrowthIntentExtracted {
+  key: "wash_temp" | "use_context" | "wash_cycles" | "bulk_sla";
+  label: string;
+  value: string;
+  confidence: number;
+  productField: string;
+  evidence: string[];
+  status: "ready";
+  generatedBy: "llm" | "fallback";
+  fallbackReason?: string;
+}
+export interface IntentGrowthGapDetected {
+  productId: string;
+  coverageBefore: number;
+  missingFields: string[];
+  summary: string;
+  generatedBy: "llm" | "fallback";
+}
+export interface IntentGrowthProductFieldUpdated {
+  productId: string;
+  field: string;
+  value: string;
+  status: "written";
+  version: "v2.2";
+  coverageAfter: number;
+  evidence: string[];
+}
+export interface IntentGrowthProductVersionPublished {
+  productId: string;
+  productName: string;
+  previousVersion: "v2.1";
+  version: "v2.2";
+  coverageBefore: number;
+  coverageAfter: number;
+  writtenFields: string[];
+  summary: string;
+}
+export interface IntentGrowthBuyerRematched {
+  intentId: string;
+  buyerName: string;
+  quantity: number;
+  deadlineDays: number;
+  requirements: string[];
+  scoreBefore: number;
+  scoreAfter: number;
+  rankBefore: number;
+  rankAfter: number;
+  scoreBreakdown: {
+    context: number;
+    wash: number;
+    durability: number;
+    bulkSla: number;
+  };
+}
+export interface IntentGrowthQuoteRequested {
+  quoteId: string;
+  quantity: number;
+  budgetUsd: number;
+  requestedDeliveryDays: number;
+  requestedTerms: string[];
+}
+export interface IntentGrowthTermsNegotiated {
+  quoteId: string;
+  unitPriceUsd: number;
+  quantity: number;
+  deliveryDays: number;
+  delayPenaltyPercent: number;
+  totalUsd: number;
+  messages: string[];
+}
+export interface IntentGrowthOrderSigned {
+  orderId: string;
+  buyerName: string;
+  quantity: number;
+  unitPriceUsd: number;
+  totalUsd: number;
+  deliveryDays: number;
+  delayPenaltyPercent: number;
+  status: "signed";
+}
+export interface IntentGrowthAttestationIssued {
+  attestationId: string;
+  deliveredInDays: number;
+  evidenceVerified: boolean;
+  slaHonored: boolean;
+  afterSalesExecutable: boolean;
+  trustDelta: number;
+  simulatedFulfillment: true;
+}
+export interface IntentGrowthRankUpdated {
+  rankBefore: number;
+  rankAfter: number;
+  scoreBefore: number;
+  scoreAfter: number;
+  shortlistRateBefore: number;
+  shortlistRateAfter: number;
+  ordersPerDayBefore: number;
+  ordersPerDayAfter: number;
+  projectedNewIntents: number;
+  simulatedProjection: true;
+}
 
 export interface EventPayloadMap {
   "purchase.requested": PurchaseRequest;

@@ -743,9 +743,9 @@
 .demand-network-actions { display: flex; align-items: center; gap: 6px; }
 .demand-market-strip { display: grid; grid-template-columns: repeat(5, minmax(105px, 1fr)) 110px; border-bottom: 1px solid var(--color-border); }
 .demand-market-strip > div { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 2px 6px; padding: 7px 10px; border-right: 1px solid var(--color-border); }
-.demand-market-strip > div > span { grid-column: 1 / -1; color: var(--color-text-faint); font-size: 6px; text-transform: uppercase; }
-.demand-market-strip > div > strong { color: var(--color-data); font-size: 14px; }
-.demand-market-strip > div > small { padding-bottom: 2px; color: var(--color-text-faint); font-size: 6px; }
+.demand-market-strip > div > span { grid-column: 1 / -1; color: var(--color-text-faint); font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+.demand-market-strip > div > strong { color: var(--color-data); font-size: 16px; }
+.demand-market-strip > div > small { padding-bottom: 2px; color: var(--color-text-faint); font-size: 9px; }
 .demand-market-strip > div.success > strong { color: var(--color-fulfil); }
 .demand-market-strip .market-stage-counter { display: flex; align-items: center; justify-content: center; flex-direction: column; background: var(--color-surface-1); }
 .market-stage-counter span { grid-column: auto !important; }
@@ -853,9 +853,9 @@
 .run-active-sale:disabled { opacity: .65; }
 .active-sales-metrics { display: grid; grid-template-columns: repeat(5, minmax(100px, 1fr)); border-bottom: 1px solid var(--color-border); }
 .active-sales-metrics > div { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 2px 6px; padding: 8px 12px; border-right: 1px solid var(--color-border); }
-.active-sales-metrics span { grid-column: 1 / -1; color: var(--color-text-faint); font-size: 7px; text-transform: uppercase; }
-.active-sales-metrics strong { color: var(--color-data); font-size: 15px; }
-.active-sales-metrics small { padding-bottom: 2px; color: var(--color-text-faint); font-size: 7px; }
+.active-sales-metrics span { grid-column: 1 / -1; color: var(--color-text-faint); font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+.active-sales-metrics strong { color: var(--color-data); font-size: 16px; }
+.active-sales-metrics small { padding-bottom: 2px; color: var(--color-text-faint); font-size: 9px; }
 .active-sales-metrics .success strong { color: var(--color-fulfil); }
 .active-sales-error { padding: 6px 12px; color: var(--color-breach); background: var(--color-breach-soft); font-size: 8px; }
 .active-sales-grid { min-height: 0; flex: 1; display: grid; grid-template-columns: 220px minmax(330px, .9fr) minmax(390px, 1.1fr); }
@@ -1091,9 +1091,9 @@
 .intent-growth-actions { display: flex; align-items: center; gap: 6px; }
 .intent-growth-metrics { flex: none; display: grid; grid-template-columns: repeat(5, minmax(100px, 1fr)); border-bottom: 1px solid var(--color-border); }
 .intent-growth-metrics > div { min-width: 0; padding: 7px 11px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 2px 6px; border-right: 1px solid var(--color-border); }
-.intent-growth-metrics span { grid-column: 1 / -1; color: var(--color-text-faint); font-size: 7px; text-transform: uppercase; }
-.intent-growth-metrics strong { color: var(--color-data); font-size: 15px; }
-.intent-growth-metrics small { padding-bottom: 2px; overflow: hidden; color: var(--color-text-faint); font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.intent-growth-metrics span { grid-column: 1 / -1; color: var(--color-text-faint); font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+.intent-growth-metrics strong { color: var(--color-data); font-size: 16px; }
+.intent-growth-metrics small { padding-bottom: 2px; overflow: hidden; color: var(--color-text-faint); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .intent-growth-metrics .success strong { color: var(--color-fulfil); }
 .intent-growth-workspace { min-height: 0; flex: 1; display: grid; grid-template-columns: 270px minmax(430px, 1fr) 285px; }
 .intent-dialogue-dock, .intent-output-dock { min-height: 0; display: flex; flex-direction: column; background: var(--color-surface-1); }

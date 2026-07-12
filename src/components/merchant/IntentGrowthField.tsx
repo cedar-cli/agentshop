@@ -94,11 +94,11 @@ export function IntentGrowthField() {
       </header>
 
       <div className="intent-growth-metrics">
-        <Metric label="Dialogue rounds" value={learning?.dialogueRounds ?? dialogues.length} unit={learning ? 'LIVE + HISTORY' : 'WAITING'} />
-        <Metric label="Usable intents" value={intents.length} unit={learning?.generatedBy?.toUpperCase() ?? 'LLM READY'} />
-        <Metric label="Intent coverage" value={`${product?.coverageAfter ?? fields[fields.length - 1]?.coverageAfter ?? 61}%`} unit={product ? 'v2.2 LIVE' : 'v2.1'} />
-        <Metric label="Intent rank" value={`#${rank?.rankAfter ?? match?.rankAfter ?? 3}`} unit={rank ? '+12 TRUST' : 'CURRENT'} success={Boolean(rank)} />
-        <Metric label="Order" value={order ? `$${order.totalUsd.toLocaleString()}` : '$0'} unit={order ? 'SIGNED' : 'WAITING'} success={Boolean(order)} />
+        <Metric label="对话轮次" value={learning?.dialogueRounds ?? dialogues.length} unit={learning ? 'LIVE + HISTORY' : 'WAITING'} />
+        <Metric label="可用意图" value={intents.length} unit={learning?.generatedBy?.toUpperCase() ?? 'LLM READY'} />
+        <Metric label="意图覆盖率" value={`${product?.coverageAfter ?? fields[fields.length - 1]?.coverageAfter ?? 61}%`} unit={product ? 'v2.2 LIVE' : 'v2.1'} />
+        <Metric label="意图榜位" value={`#${rank?.rankAfter ?? match?.rankAfter ?? 3}`} unit={rank ? '+12 TRUST' : 'CURRENT'} success={Boolean(rank)} />
+        <Metric label="订单金额" value={order ? `$${order.totalUsd.toLocaleString()}` : '$0'} unit={order ? 'SIGNED' : 'WAITING'} success={Boolean(order)} />
       </div>
 
       {runtime.error && <div className="active-sales-error">{runtime.error}</div>}

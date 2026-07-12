@@ -29,30 +29,47 @@ function safeReason(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).slice(0, 240);
 }
 
-function validateIntent(intent: Omit<LaptopIntent, "requestText" | "generatedBy" | "fallbackReason">) {
-  const total = Object.values(intent.priorities).reduce((sum, value) => sum + value, 0);
+function validateIntent(
+  intent: Omit<LaptopIntent, "requestText" | "generatedBy" | "fallbackReason">,
+) {
+  const total = Object.values(intent.priorities).reduce(
+    (sum, value) => sum + value,
+    0,
+  );
   if (total <= 0) throw new Error("偏好权重不可全部为0");
-  if (intent.budgetCny < 5000 || intent.budgetCny > 30000) throw new Error("预算超出轻薄本场景范围");
+  if (intent.budgetCny < 5000 || intent.budgetCny > 30000)
+    throw new Error("预算超出轻薄本场景范围");
   if (intent.deadlineHours > 720) throw new Error("交期超出轻薄本场景范围");
-  if (intent.maxWeightKg > 3 || intent.minBatteryHours > 30) throw new Error("规格约束超出合理范围");
+  if (intent.maxWeightKg > 3 || intent.minBatteryHours > 30)
+    throw new Error("规格约束超出合理范围");
   return {
     ...intent,
     priorities: {
-      timeliness: Number(((intent.priorities.timeliness / total) * 100).toFixed(2)),
+      timeliness: Number(
+        ((intent.priorities.timeliness / total) * 100).toFixed(2),
+      ),
       spec: Number(((intent.priorities.spec / total) * 100).toFixed(2)),
       price: Number(((intent.priorities.price / total) * 100).toFixed(2)),
-      afterSales: Number(((intent.priorities.afterSales / total) * 100).toFixed(2)),
+      afterSales: Number(
+        ((intent.priorities.afterSales / total) * 100).toFixed(2),
+      ),
     },
   };
 }
 
-async function buildIntent(requestText: string, llm?: LaptopLlmAgent): Promise<LaptopIntent> {
+async function buildIntent(
+  requestText: string,
+  llm?: LaptopLlmAgent,
+): Promise<LaptopIntent> {
   if (!llm) return fallbackLaptopIntent(requestText);
   try {
     const parsed = validateIntent(await llm.parseIntent(requestText));
     return { ...parsed, requestText, generatedBy: "llm" };
   } catch (error) {
-    return { ...fallbackLaptopIntent(requestText), fallbackReason: safeReason(error) };
+    return {
+      ...fallbackLaptopIntent(requestText),
+      fallbackReason: safeReason(error),
+    };
   }
 }
 
@@ -63,7 +80,11 @@ async function buildProposal(
 ): Promise<LaptopProposal> {
   if (!llm) return fallbackLaptopProposal(seller);
   try {
-    const draft = validateLaptopQuote(await llm.generateProposal(seller, intent), seller, intent);
+    const draft = validateLaptopQuote(
+      await llm.generateProposal(seller, intent),
+      seller,
+      intent,
+    );
     return {
       ...fallbackLaptopProposal(seller),
       quotedPriceCny: draft.quotedPriceCny,
@@ -72,7 +93,10 @@ async function buildProposal(
       fallbackReason: undefined,
     };
   } catch (error) {
-    return { ...fallbackLaptopProposal(seller), fallbackReason: safeReason(error) };
+    return {
+      ...fallbackLaptopProposal(seller),
+      fallbackReason: safeReason(error),
+    };
   }
 }
 
@@ -123,13 +147,20 @@ export async function runLaptopPurchaseUntilApproval(
       type: "laptop.seller.rejected",
       source: "buyer-agent",
       target: proposal.sellerId,
-      payload: { sellerId: proposal.sellerId, displayName: proposal.displayName, reasons },
+      payload: {
+        sellerId: proposal.sellerId,
+        displayName: proposal.displayName,
+        reasons,
+      },
     });
   }
   if (eligible.length === 0) throw new Error("没有卖家满足轻薄本采购硬约束");
 
   const ranked = eligible
-    .map((proposal) => ({ proposal, score: scoreLaptopProposal(proposal, intent) }))
+    .map((proposal) => ({
+      proposal,
+      score: scoreLaptopProposal(proposal, intent),
+    }))
     .sort((left, right) => right.score - left.score);
   const first = ranked[0];
   if (!first) throw new Error("无法完成轻薄本卖家排名");
@@ -148,7 +179,9 @@ export async function runLaptopPurchaseUntilApproval(
     payload: winner,
   });
 
-  const seller = laptopSellerFacts.find((item) => item.sellerId === winner.sellerId);
+  const seller = laptopSellerFacts.find(
+    (item) => item.sellerId === winner.sellerId,
+  );
   if (!seller) throw new Error("中标卖家事实不存在");
   const counterOffer: LaptopCounterOffer = {
     sellerId: winner.sellerId,
@@ -157,7 +190,8 @@ export async function runLaptopPurchaseUntilApproval(
       seller.minimumPriceCny,
       winner.proposal.quotedPriceCny - 300,
     ),
-    reasoning: "同配置可信报价已完成比较，希望以三年联保与次日达组合换取进一步让利",
+    reasoning:
+      "同配置可信报价已完成比较，希望以三年联保与次日达组合换取进一步让利",
   };
   await router.publish({
     transactionId,
@@ -194,7 +228,10 @@ export async function runLaptopPurchaseUntilApproval(
     payload: {
       sellerId: winner.sellerId,
       finalPriceCny,
-      concessionCny: Math.max(0, winner.proposal.quotedPriceCny - finalPriceCny),
+      concessionCny: Math.max(
+        0,
+        winner.proposal.quotedPriceCny - finalPriceCny,
+      ),
       reasoning,
       generatedBy,
       fallbackReason,
