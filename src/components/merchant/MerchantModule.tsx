@@ -33,14 +33,25 @@ export function MerchantModule() {
 
   return (
     <div className="module merchant-module">
-      <header className="merchant-head">
-        <div className="merchant-title-wrap">
-          <span className="merchant-mark"><Bot size={18} /></span>
-          <div>
-            <h2 className="module-title">{seller.name} · S-Agent 销售中枢</h2>
-            <p className="module-desc">用可信履约争夺买家决策权，销售、供应链、客服与财务 Agent 协同成交。</p>
-          </div>
+      <header className="merchant-bar">
+        <div
+          className="merchant-title-wrap"
+          title="用可信履约争夺买家决策权，销售、供应链、客服与财务 Agent 协同成交。"
+        >
+          <span className="merchant-mark"><Bot size={16} /></span>
+          <h2 className="module-title">{seller.name} · S-Agent 销售中枢</h2>
         </div>
+        <nav className="merchant-tabs" aria-label="商家工作台">
+          {VIEWS.map((item) => {
+            const Icon = item.icon
+            return (
+              <button type="button" key={item.key} className={view === item.key ? 'on' : ''} onClick={() => setView(item.key)}>
+                <Icon size={16} /><span>{item.label}</span>
+                {item.key === 'deals' && <i className="live-indicator" />}
+              </button>
+            )
+          })}
+        </nav>
         <div className="merchant-kpis">
           <span><b className="num">18</b>活跃买家</span>
           <span><b className="num">31.8%</b>提案胜率</span>
@@ -48,18 +59,6 @@ export function MerchantModule() {
           <span className={seller.flagged ? 'merchant-risk bad' : 'merchant-risk'}><ShieldCheck size={13} />{seller.flagged ? '准入降级' : '准入正常'}</span>
         </div>
       </header>
-
-      <nav className="merchant-tabs" aria-label="商家工作台">
-        {VIEWS.map((item) => {
-          const Icon = item.icon
-          return (
-            <button type="button" key={item.key} className={view === item.key ? 'on' : ''} onClick={() => setView(item.key)}>
-              <Icon size={16} /><span>{item.label}</span>
-              {item.key === 'deals' && <i className="live-indicator" />}
-            </button>
-          )
-        })}
-      </nav>
 
       <div className="merchant-stage panel">
         {view === 'deals' && <MerchantDealRoom />}

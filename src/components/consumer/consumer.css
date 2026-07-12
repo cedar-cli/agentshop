@@ -2,7 +2,7 @@
   gap: 12px;
 }
 
-.consumer-head,
+.consumer-bar,
 .consumer-title-wrap,
 .consumer-trust-strip,
 .consumer-tabs,
@@ -28,33 +28,35 @@
   align-items: center;
 }
 
-.consumer-head {
-  justify-content: space-between;
-  gap: 16px;
+/* 单行工具条：标题 · 页签 · 身份指标，共用一行，最大化下方功能区高度 */
+.consumer-bar {
+  gap: var(--space-4);
   flex: none;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .consumer-title-wrap {
-  gap: 10px;
+  gap: 8px;
+  flex: none;
+  cursor: default;
 }
 
 .consumer-agent-mark {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
   color: var(--color-data);
   background: var(--color-data-soft);
   border: 1px solid var(--color-data);
-  border-radius: 8px;
+  border-radius: 7px;
+  flex: none;
 }
 
 .consumer-trust-strip {
   gap: 14px;
-  padding: 8px 12px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-0);
-  border-radius: 8px;
+  margin-left: auto;
+  flex: none;
   color: var(--color-text-dim);
   font-size: 11px;
 }
@@ -72,12 +74,11 @@
 .consumer-tabs {
   gap: 4px;
   flex: none;
-  border-bottom: 1px solid var(--color-border);
 }
 
 .consumer-tabs button {
-  height: 38px;
-  padding: 0 14px;
+  height: 34px;
+  padding: 0 12px;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -840,6 +841,172 @@
 .memory-actions button.blocked { color: var(--color-text-dim); border-color: var(--color-border-strong); background: var(--color-surface-1); }
 .sender-penalty { display: flex; align-items: center; gap: 6px; margin-top: 12px; padding: 8px; color: var(--color-breach); background: var(--color-breach-soft); border-radius: 6px; font-size: 9px; }
 .memory-boundary { margin-top: 14px; padding-top: 12px; color: var(--color-text-faint); border-top: 1px solid var(--color-border); font-size: 9px; line-height: 1.5; }
+
+/* ---- 新增委托任务 ---- */
+.rail-new-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  color: var(--color-void);
+  background: var(--color-data);
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 600;
+  transition: filter var(--duration-fast, 150ms) ease;
+}
+.rail-new-button:hover { filter: brightness(1.08); }
+.rail-new-button.on { box-shadow: 0 0 0 2px var(--color-data-soft); }
+
+.delegation-rail-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-text-faint);
+}
+.delegation-rail-dot.phase-running,
+.delegation-rail-dot.phase-queued { background: var(--color-proposal); box-shadow: 0 0 0 3px var(--color-proposal-soft); }
+.delegation-rail-dot.phase-completed { background: var(--color-fulfil); }
+.delegation-rail-dot.phase-failed { background: var(--color-breach); }
+
+.delegation-composer {
+  position: relative;
+  height: auto;
+  min-height: 56px;
+  flex-direction: column;
+  align-items: stretch;
+}
+.delegation-composer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.delegation-mode-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  color: var(--color-data);
+  background: var(--color-data-soft);
+  border: 1px solid var(--color-data);
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.delegation-mode-chip button {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--color-data);
+  background: transparent;
+  border-radius: 4px;
+}
+.delegation-mode-chip button:hover { background: var(--color-surface-1); }
+
+.delegation-picker {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(100% + 6px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  background: var(--color-surface-0);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 9px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+  z-index: 20;
+}
+.delegation-picker-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 6px 6px;
+  color: var(--color-text-faint);
+  font-size: 9px;
+}
+.delegation-picker button {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 9px;
+  text-align: left;
+  border-radius: 7px;
+}
+.delegation-picker button:hover,
+.delegation-picker button[aria-selected='true'] { background: var(--color-surface-1); }
+.delegation-picker button strong { color: var(--color-text); font-size: 11px; }
+.delegation-picker button small { color: var(--color-text-faint); font-size: 9px; line-height: 1.4; }
+
+/* ---- 新建委托空状态 ---- */
+.new-delegation-stage { min-width: 0; }
+.new-delegation-hero {
+  padding: 28px 24px 8px;
+  text-align: center;
+}
+.new-delegation-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 12px;
+  color: var(--color-data);
+  background: var(--color-data-soft);
+  border-radius: 13px;
+}
+.new-delegation-hero h3 { font-size: 19px; }
+.new-delegation-hero p {
+  max-width: 460px;
+  margin: 8px auto 0;
+  color: var(--color-text-dim);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.new-delegation-hero b { color: var(--color-data); }
+.new-delegation-modes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  padding: 18px 24px 6px;
+}
+.new-delegation-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 12px;
+  background: var(--color-surface-0);
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+}
+.new-delegation-mode .mode-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-text);
+  font-size: 11px;
+  font-weight: 600;
+}
+.new-delegation-mode small { color: var(--color-text-faint); font-size: 9px; line-height: 1.5; }
+.new-delegation-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 24px 24px;
+}
+.new-delegation-examples button {
+  padding: 10px 12px;
+  text-align: left;
+  color: var(--color-text-dim);
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 11px;
+}
+.new-delegation-examples button:hover { border-color: var(--color-data); color: var(--color-text); }
+.new-delegation-examples .example-mode { color: var(--color-data); font-weight: 600; }
 
 @media (max-width: 1280px) {
   .consumer-workspace { grid-template-columns: 210px minmax(380px, 1fr) 285px; }

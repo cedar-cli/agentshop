@@ -71,6 +71,22 @@ export const laptopPurchaseRequestSchema = z.object({
   requestText: z.string().min(8).max(500),
 });
 
+// 消费者主动服务方式：auto=全权代买（默认，无需 @）；其余对应四类主动服务场景。
+// 该枚举仅决定委托的授权框架与展示口径，不改变底层真实 LLM 采购工作流。
+export const consumerServiceModeSchema = z.enum([
+  "auto",
+  "restock",
+  "scarce",
+  "lowprice",
+  "secondhand",
+]);
+
+// 新增委托任务请求：requestText 为完整购物意图（≥4 字），serviceMode 可选（对应 @ 选择的主动服务方式）。
+export const consumerDelegationRequestSchema = z.object({
+  requestText: z.string().min(4).max(500),
+  serviceMode: consumerServiceModeSchema.optional(),
+});
+
 const laptopPrioritiesSchema = z.object({
   timeliness: z.number().min(0).max(100),
   spec: z.number().min(0).max(100),
@@ -159,7 +175,7 @@ const laptopOrderConfirmedSchema = z.object({
   displayName: z.string().min(1),
   totalPriceCny: z.number().positive(),
   status: z.literal("confirmed"),
-  approvedBy: z.literal("human"),
+  approvedBy: z.enum(["human", "agent"]),
 });
 
 const laptopFulfillmentUpdatedSchema = z.object({

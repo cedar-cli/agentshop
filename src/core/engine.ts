@@ -308,7 +308,7 @@ export function step(world: WorldState): StepResult {
 
   // 2) 生成新需求信号（消费者侧）
   const activeCount = txs.filter((t) => t.status !== 'attested').length
-  if (activeCount < 14 && consumers.length) {
+  if (activeCount < 9 && consumers.length) {
     const n = 1 + (chance(0.5) ? 1 : 0)
     for (let i = 0; i < n; i++) {
       const buyer = consumers[Math.floor(Math.random() * consumers.length)]

@@ -15,7 +15,7 @@ import {
   sellerProfiles,
   type SellerProfile,
 } from "../agents/seller-profiles.js";
-import type { DemandNetworkRequest, ExecutableIntent, LaptopPurchaseRequested, PurchaseRequest, RestockIntent } from "../protocol/events.js";
+import type { ConsumerDelegationRequest, DemandNetworkRequest, ExecutableIntent, LaptopPurchaseRequested, PurchaseRequest, RestockIntent } from "../protocol/events.js";
 import { EventRouter } from "../router/event-router.js";
 import {
   createNewbornBeddingScenario,
@@ -50,14 +50,14 @@ export type TransactionStatus =
  *  - purchase：现有的普通采购交易，request 为 PurchaseRequest。
  *  - newborn-bedding-demo：新生儿床品 A2A 演示，request 为可执行意图 ExecutableIntent。
  */
-export type TransactionKind = "purchase" | "newborn-bedding-demo" | "laptop-demo" | "household-restock-demo" | "active-sales-demo" | "demand-network-demo" | "intent-growth-demo";
+export type TransactionKind = "purchase" | "newborn-bedding-demo" | "laptop-demo" | "consumer-delegation" | "household-restock-demo" | "active-sales-demo" | "demand-network-demo" | "intent-growth-demo";
 
 interface TransactionRecord {
   id: string;
   kind: TransactionKind;
   status: TransactionStatus;
   // 采购交易存 PurchaseRequest；Demo 交易存 ExecutableIntent（意图即请求）
-  request: PurchaseRequest | ExecutableIntent | LaptopPurchaseRequested | RestockIntent | DemandNetworkRequest | { productId: string };
+  request: PurchaseRequest | ExecutableIntent | LaptopPurchaseRequested | ConsumerDelegationRequest | RestockIntent | DemandNetworkRequest | { productId: string };
   error?: string;
 }
 
@@ -192,6 +192,17 @@ export class TransactionService {
 
   createLaptopDemo(requestText: string): string {
     return this.enqueue("laptop-demo", { requestText });
+  }
+
+  /**
+   * 新增一笔消费者委托任务：用户给出完整购物意图（可选主动服务方式），
+   * 由消费 Agent 全自动接管——真实 LLM 解析意图、比较报价、议价，
+   * 并在授权阈值内自动下单、履约、鉴证，全程无需人工点击确认。
+   * @param request 完整购物意图与可选主动服务方式
+   * @returns 新委托交易的 transactionId（每次不同，可重复发起）
+   */
+  createConsumerDelegation(request: ConsumerDelegationRequest): string {
+    return this.enqueue("consumer-delegation", request);
   }
 
   createHouseholdRestockDemo(): string {
@@ -411,6 +422,17 @@ export class TransactionService {
         transaction.status = "awaiting-approval";
         this.publishMerchantTransaction(transactionId);
         return;
+      } else if (transaction.kind === "consumer-delegation") {
+        // 委托任务：跑通与 laptop-demo 相同的真实 LLM 采购工作流，
+        // 但不在此处暂停等待人工确认，而是由消费 Agent 直接在授权内自动下单，
+        // 一次性走完下单、履约、鉴证，满足“全自动完成一切交易”。
+        const approval = await runLaptopPurchaseUntilApproval(
+          this.router,
+          transactionId,
+          (transaction.request as ConsumerDelegationRequest).requestText,
+          this.laptopLlmAgent,
+        );
+        await completeApprovedLaptopPurchase(this.router, transactionId, approval, "agent");
       } else if (transaction.kind === "household-restock-demo") {
         await runHouseholdRestockWorkflow(
           this.router,

@@ -140,8 +140,9 @@ function adaptLaptopEvent(event: StoredEvent): DemoEvent {
       return { ...common, kind: 'approval', actor: 'C-Agent', title: '请求最终确认', body: payload.reason, impact: `保价 ${payload.expiresInMinutes} 分钟`, origin: 'rule' }
     }
     case 'laptop.order.confirmed': {
-      const payload = typedPayload<{ totalPriceCny: number; displayName: string }>(event)!
-      return { ...common, kind: 'payment', actor: 'Buyer Agent', title: '人工授权下单', body: `已向${payload.displayName}创建 Agent Order，成交 ¥${payload.totalPriceCny.toLocaleString()}。`, origin: 'rule' }
+      const payload = typedPayload<{ totalPriceCny: number; displayName: string; approvedBy?: 'human' | 'agent' }>(event)!
+      const byAgent = payload.approvedBy === 'agent'
+      return { ...common, kind: 'payment', actor: 'Buyer Agent', title: byAgent ? 'Agent 授权内自动下单' : '人工授权下单', body: `${byAgent ? '在长期授权阈值内自动' : '已'}向${payload.displayName}创建 Agent Order，成交 ¥${payload.totalPriceCny.toLocaleString()}。`, origin: 'rule' }
     }
     case 'laptop.fulfillment.updated': {
       const payload = typedPayload<{ deliveredEarlyHours: number; checks: string[] }>(event)!

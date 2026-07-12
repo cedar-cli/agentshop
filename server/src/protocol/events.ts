@@ -167,6 +167,20 @@ export interface LaptopPurchaseRequested {
   requestText: string;
 }
 
+// 消费者主动服务方式（与 schemas.consumerServiceModeSchema 对应）。
+export type ConsumerServiceMode =
+  | "auto"
+  | "restock"
+  | "scarce"
+  | "lowprice"
+  | "secondhand";
+
+// 新增委托任务请求：完整购物意图 + 可选主动服务方式。
+export interface ConsumerDelegationRequest {
+  requestText: string;
+  serviceMode?: ConsumerServiceMode;
+}
+
 export interface LaptopIntent {
   requestText: string;
   product: string;
@@ -251,7 +265,8 @@ export interface LaptopOrderConfirmed {
   displayName: string;
   totalPriceCny: number;
   status: "confirmed";
-  approvedBy: "human";
+  // human：高值场景等待人工确认后下单；agent：委托任务在授权阈值内由消费 Agent 自动下单
+  approvedBy: "human" | "agent";
 }
 
 export interface LaptopFulfillmentUpdated {

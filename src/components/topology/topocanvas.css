@@ -1,6 +1,8 @@
 .topo-canvas {
   position: relative;
   flex: 1;
+  min-width: 0; /* 关键：flex 行中必须允许收缩，否则 canvas 内容宽度会通过
+                   ResizeObserver 回环把容器不断撑宽（表现为节点向右漂移直至看不见） */
   min-height: 0;
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -15,9 +17,74 @@
   box-shadow: var(--shadow-panel);
 }
 
+/* 绝对定位：canvas 尺寸完全由容器决定，绝不反向影响 flex 布局，
+   彻底杜绝 ResizeObserver 尺寸回环 */
 .topo-canvas canvas {
+  position: absolute;
+  inset: 0;
   display: block;
   cursor: crosshair;
+}
+
+/* 焦点交易解说气泡：逐帧跟随买家节点，说明当前正在发生什么 */
+.topo-narrate {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  width: 258px;
+  padding: 10px 13px 11px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-strong);
+  border-left: 3px solid var(--color-data);
+  background: var(--color-surface-glass);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-float);
+  z-index: var(--z-tooltip);
+  transition:
+    opacity var(--dur-normal) var(--ease-out-expo),
+    left var(--dur-normal) var(--ease-out-expo),
+    top var(--dur-normal) var(--ease-out-expo);
+}
+.topo-narrate.tone-signal { border-left-color: var(--color-consumer); }
+.topo-narrate.tone-bidding { border-left-color: var(--color-proposal); }
+.topo-narrate.tone-settled { border-left-color: var(--color-data); }
+.topo-narrate.tone-fulfilling { border-left-color: var(--color-fulfil); }
+
+.tn-kicker {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--color-text-faint);
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.tn-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  margin-bottom: 5px;
+}
+.tn-body {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-text-dim);
+}
+.tn-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid var(--color-border);
+  font-size: 10px;
+  color: var(--color-text-faint);
+}
+.tn-meta .num {
+  color: var(--color-text);
+  font-weight: 600;
 }
 
 .topo-tip {

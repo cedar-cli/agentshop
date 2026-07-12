@@ -222,6 +222,7 @@ export async function completeApprovedLaptopPurchase(
   router: EventRouter,
   transactionId: string,
   state: LaptopApprovalState,
+  approvedBy: "human" | "agent" = "human",
 ): Promise<void> {
   const orderId = `order-laptop-${randomUUID()}`;
   await router.publish({
@@ -235,7 +236,7 @@ export async function completeApprovedLaptopPurchase(
       displayName: state.winner.displayName,
       totalPriceCny: state.finalPriceCny,
       status: "confirmed",
-      approvedBy: "human",
+      approvedBy,
     },
   });
   await router.publish({

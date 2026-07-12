@@ -1,6 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { z } from "zod";
-import { demandNetworkRequestSchema, laptopPurchaseRequestSchema, purchaseRequestSchema } from "../protocol/schemas.js";
+import { consumerDelegationRequestSchema, demandNetworkRequestSchema, laptopPurchaseRequestSchema, purchaseRequestSchema } from "../protocol/schemas.js";
 import type { TransactionService } from "../app/transaction-service.js";
 
 function writeSseEvent(
@@ -200,6 +200,25 @@ export function buildApp(
       });
     }
     const transactionId = service.createLaptopDemo(parsed.data.requestText);
+    return reply.status(202).send({
+      transactionId,
+      status: "queued",
+      transactionUrl: `/api/transactions/${transactionId}`,
+      eventsUrl: `/api/transactions/${transactionId}/events`,
+    });
+  });
+
+  // 新增委托任务：消费者给出完整购物意图（可 @ 选择主动服务方式），
+  // 消费 Agent 全自动接管并完整走完真实 LLM 会话与交易，无需人工确认。
+  app.post("/api/demo/consumer-delegation", async (request, reply) => {
+    const parsed = consumerDelegationRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: "invalid_consumer_delegation_request",
+        details: parsed.error.flatten(),
+      });
+    }
+    const transactionId = service.createConsumerDelegation(parsed.data);
     return reply.status(202).send({
       transactionId,
       status: "queued",

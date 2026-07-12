@@ -179,7 +179,7 @@ export function startClock(): () => void {
     const s = useWorld.getState();
     if (s.running) {
       acc += dt * s.speed;
-      const period = 900; // 基础 tick 周期 ms
+      const period = 1500; // 基础 tick 周期 ms（默认放慢，便于在全景中看清每笔交易逐步推进）
       while (acc >= period) {
         acc -= period;
         useWorld.getState().tickOnce();

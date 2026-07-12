@@ -1,0 +1,171 @@
+/* ============================================================
+   家庭库存实时监测（自动补库执行中）
+   ============================================================ */
+.restock-monitor {
+  margin-bottom: 13px;
+  padding: 14px;
+  background: var(--color-surface-0);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 9px;
+  transition: border-color var(--dur-normal) var(--ease-out-expo);
+}
+.restock-monitor.breached {
+  border-color: var(--color-proposal);
+  box-shadow: var(--glow-proposal);
+}
+.rm-head {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.rm-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  color: var(--color-fulfil);
+  background: var(--color-fulfil-soft);
+  border-radius: 7px;
+}
+.restock-monitor.breached .rm-icon {
+  color: var(--color-proposal);
+  background: var(--color-proposal-soft);
+}
+.rm-head strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+}
+.rm-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  color: var(--color-fulfil);
+  background: var(--color-fulfil-soft);
+  border-radius: var(--radius-pill);
+  font-size: 8px;
+  white-space: nowrap;
+}
+.rm-live.alarm {
+  color: var(--color-proposal);
+  background: var(--color-proposal-soft);
+}
+.rm-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-fulfil);
+  animation: rm-pulse 1.1s var(--ease-out-expo) infinite;
+}
+@keyframes rm-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.7); }
+}
+.rm-items {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 13px;
+}
+.rm-item {
+  padding: 10px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  transition: all var(--dur-normal) var(--ease-out-expo);
+}
+.rm-item.low {
+  border-color: var(--color-proposal);
+  background: var(--color-proposal-soft);
+}
+.rm-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.rm-item-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-text-dim);
+  font-size: 10px;
+}
+.rm-item-name svg { color: var(--color-fulfil); }
+.rm-item.low .rm-item-name svg { color: var(--color-proposal); }
+.rm-item-top b { font-size: 15px; }
+.rm-item.low .rm-item-top b { color: var(--color-proposal); }
+.rm-bar {
+  position: relative;
+  height: 6px;
+  margin: 8px 0;
+  background: var(--color-surface-2);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.rm-threshold {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--color-breach);
+  opacity: 0.7;
+  z-index: 1;
+}
+.rm-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-fulfil), var(--color-data));
+  border-radius: 99px;
+  transition: width var(--dur-normal) linear;
+}
+.rm-item.low .rm-fill {
+  background: linear-gradient(90deg, var(--color-breach), var(--color-proposal));
+}
+.rm-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--color-text-faint);
+  font-size: 8px;
+}
+.rm-item-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.rm-item-meta .warn { color: var(--color-proposal); }
+.rm-footer { margin-top: 13px; }
+.rm-footer p {
+  margin: 0 0 10px;
+  color: var(--color-text-dim);
+  font-size: 10px;
+  line-height: 1.55;
+}
+.rm-cta {
+  width: 100%;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: var(--color-void);
+  background: var(--color-fulfil);
+  border-radius: 8px;
+  font-size: 11px;
+  transition: all var(--dur-fast) var(--ease-out-expo);
+}
+.rm-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-float); }
+.rm-cta.ready {
+  background: var(--color-proposal);
+  animation: rm-cta-glow 1.4s var(--ease-out-expo) infinite;
+}
+@keyframes rm-cta-glow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--color-proposal-soft); }
+  50% { box-shadow: 0 0 0 5px transparent; }
+}
+@media (max-width: 720px) {
+  .rm-items { grid-template-columns: 1fr; }
+}
